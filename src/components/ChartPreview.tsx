@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -260,6 +260,12 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
 
   const data = getChartJSData();
   const options = getChartOptions();
+
+  useEffect(() => {
+    document.fonts.ready.then(() => {
+      chartRef.current?.update();
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const chartProps = {
     ref: chartRef as React.Ref<ChartJS>,

@@ -9,7 +9,9 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', 'sans-serif'],
+        sans: ['"Mona Sans"', 'sans-serif'],
+        display: ['"Mona Sans Display"', 'sans-serif'],
+        mono: ['"Mona Sans Mono"', 'monospace'],
       },
     },
   },

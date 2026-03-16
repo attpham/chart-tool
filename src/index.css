@@ -2,13 +2,46 @@
 @tailwind components;
 @tailwind utilities;
 
+@font-face {
+  font-family: 'Mona Sans';
+  src: url('./assets/fonts/MonaSansVF.woff2') format('woff2');
+  font-weight: 200 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Mona Sans';
+  src: url('./assets/fonts/MonaSansVF.woff2') format('woff2');
+  font-weight: 200 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Mona Sans Display';
+  src: url('./assets/fonts/MonaSansVF.woff2') format('woff2');
+  font-weight: 200 900;
+  font-style: normal;
+  font-optical-sizing: auto;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Mona Sans Mono';
+  src: url('./assets/fonts/MonaSansMonoVF.woff2') format('woff2');
+  font-weight: 200 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 @layer base {
   * {
     box-sizing: border-box;
   }
 
   html {
-    font-family: 'Inter', sans-serif;
+    font-family: 'Mona Sans', sans-serif;
   }
 
   body {

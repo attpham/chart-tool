@@ -50,10 +50,10 @@ export const DEFAULT_CHART_DATA: ChartData = {
 
 export const DEFAULT_CUSTOMIZATION: ChartCustomization = {
   title: 'My Chart',
-  titleFont: { family: 'Inter', size: 20, weight: 'bold', color: '#1f2937' },
-  axisLabelFont: { family: 'Inter', size: 14, weight: 'bold', color: '#374151' },
-  tickLabelFont: { family: 'Inter', size: 12, weight: 'normal', color: '#6b7280' },
-  legendFont: { family: 'Inter', size: 12, weight: 'normal', color: '#374151' },
+  titleFont: { family: 'Mona Sans', size: 20, weight: 'bold', color: '#1f2937' },
+  axisLabelFont: { family: 'Mona Sans', size: 14, weight: 'bold', color: '#374151' },
+  tickLabelFont: { family: 'Mona Sans Mono', size: 12, weight: 'normal', color: '#6b7280' },
+  legendFont: { family: 'Mona Sans', size: 12, weight: 'normal', color: '#374151' },
   showLegend: true,
   legendPosition: 'top',
   showGridlines: true,

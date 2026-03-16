@@ -84,7 +84,7 @@ interface FontSectionProps {
 }
 
 const FontSection: React.FC<FontSectionProps> = ({ title, font, onChange, fontKey }) => {
-  const fonts: FontFamily[] = ['Inter', 'Roboto', 'Montserrat', 'Lato', 'Georgia'];
+  const fonts: FontFamily[] = ['Mona Sans', 'Mona Sans Display', 'Mona Sans Mono', 'Inter', 'Roboto', 'Montserrat', 'Lato', 'Georgia'];
   return (
     <div className="space-y-2">
       <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">{title}</p>

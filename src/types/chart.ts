@@ -1,6 +1,6 @@
 export type ChartType = 'bar' | 'line' | 'pie' | 'doughnut' | 'scatter' | 'area';
 
-export type FontFamily = 'Inter' | 'Roboto' | 'Montserrat' | 'Lato' | 'Georgia';
+export type FontFamily = 'Mona Sans' | 'Mona Sans Display' | 'Mona Sans Mono' | 'Inter' | 'Roboto' | 'Montserrat' | 'Lato' | 'Georgia';
 
 export type PointStyle = 'circle' | 'cross' | 'crossRot' | 'dash' | 'line' | 'rect' | 'rectRounded' | 'rectRot' | 'star' | 'triangle';
 

@@ -2,6 +2,11 @@ import pptxgen from 'pptxgenjs';
 import { Chart as ChartJS } from 'chart.js';
 import { ChartCustomization, ChartType } from '../types/chart';
 
+// PptxGenJS may expose ShapeType on the default export or as a separate property
+// depending on the bundler. Resolve it defensively.
+const ShapeType: typeof pptxgen.ShapeType =
+  pptxgen.ShapeType ?? (pptxgen as any).default?.ShapeType;
+
 // ── Slide layout constants ────────────────────────────────────────────────────
 /** The chart canvas content is mapped to this area on the slide (all in inches). */
 const AREA_X = 0.5;
@@ -116,7 +121,7 @@ function addLine(
   const w = Math.abs(dx);
   const h = Math.abs(dy);
   if (w < 0.0005 && h < 0.0005) return; // skip zero-length lines
-  slide.addShape(pptxgen.ShapeType.line, {
+  slide.addShape(ShapeType.line, {
     x: Math.min(x1, x2),
     y: Math.min(y1, y2),
     w: Math.max(w, 0.001),
@@ -270,7 +275,7 @@ function addBarDataset(
     const h = px2h(height, H);
     const rectRadius = borderRadiusPx > 0 ? px2w(borderRadiusPx, W) : undefined;
 
-    slide.addShape(pptxgen.ShapeType.rect, {
+    slide.addShape(ShapeType.rect, {
       x,
       y,
       w,
@@ -346,7 +351,7 @@ function addPointDataset(
 
   for (const el of elements) {
     if (el.skip) continue;
-    slide.addShape(pptxgen.ShapeType.ellipse, {
+    slide.addShape(ShapeType.ellipse, {
       x: px2x(el.x, W) - pointW / 2,
       y: px2y(el.y, H) - pointH / 2,
       w: pointW,
@@ -374,7 +379,7 @@ function addScatterDataset(
 
   for (const el of elements) {
     if (el.skip) continue;
-    slide.addShape(pptxgen.ShapeType.ellipse, {
+    slide.addShape(ShapeType.ellipse, {
       x: px2x(el.x, W) - pointW / 2,
       y: px2y(el.y, H) - pointH / 2,
       w: pointW,
@@ -758,7 +763,7 @@ function addLegend(
     }
 
     // Colour swatch
-    slide.addShape(pptxgen.ShapeType.rect, {
+    slide.addShape(ShapeType.rect, {
       x: itemX,
       y: itemY + (lineH - swatchSizeH) / 2,
       w: swatchSize,

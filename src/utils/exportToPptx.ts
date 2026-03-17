@@ -606,13 +606,19 @@ function addLegend(
 
   items.forEach((item, i) => {
     // Resolve the colour swatch: for line/area datasets the fillStyle might be
-    // nearly transparent, so prefer the strokeStyle in those cases.
+    // nearly transparent (e.g. 'rgba(r,g,b,0.1)'), so prefer the strokeStyle.
     const rawFill =
       typeof item.fillStyle === 'string' ? item.fillStyle : '';
     const rawStroke =
       typeof item.strokeStyle === 'string' ? item.strokeStyle : '';
-    const isTransparentFill = rawFill.includes('rgba') && /0\.\d/.test(rawFill);
-    const swatchHex = toHex(isTransparentFill ? rawStroke || rawFill : rawFill) || 'CCCCCC';
+    // Match the alpha value at the end of an rgba() string (e.g. 0.1, 0.3).
+    const alphaMatch = rawFill.match(/rgba\([^,]+,[^,]+,[^,]+,\s*([\d.]+)\)/);
+    const isTransparentFill =
+      alphaMatch != null && parseFloat(alphaMatch[1]) < 0.5;
+    const sourceColor = isTransparentFill
+      ? (rawStroke || rawFill)
+      : rawFill;
+    const swatchHex = sourceColor ? toHex(sourceColor) : 'CCCCCC';
 
     let itemX: number;
     let itemY: number;
@@ -701,7 +707,10 @@ export async function exportToPptx(
     };
 
     if (!ca || !W || !H) {
-      throw new Error('Chart has not been rendered yet. Ensure the chart is visible before exporting.');
+      throw new Error(
+        `Chart dimensions not available (W=${W}, H=${H}, chartArea=${!!ca}). ` +
+        'Ensure the chart is visible before exporting.',
+      );
     }
 
     // 1. Grid lines (rendered first, behind everything else)

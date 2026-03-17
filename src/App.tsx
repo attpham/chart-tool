@@ -47,10 +47,8 @@ export default function App() {
 
   const handleExport = useCallback(async () => {
     if (!chartRef.current) throw new Error('Chart not ready');
-    const canvas = chartRef.current.canvas;
-    if (!canvas) throw new Error('Chart canvas not found');
-    await exportToPptx(canvas, customization.title || 'Chart');
-  }, [customization.title]);
+    await exportToPptx(chartRef.current, customization, chartType);
+  }, [customization, chartType]);
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 transition-colors">

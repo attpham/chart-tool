@@ -17,6 +17,7 @@ import {
 } from 'chart.js';
 import { Bar, Line, Pie, Doughnut, Scatter } from 'react-chartjs-2';
 import { ChartType, ChartData, ChartCustomization } from '../types/chart';
+import { SEMANTIC_COLORS } from '../data/palettes';
 
 ChartJS.register(
   CategoryScale,
@@ -149,7 +150,22 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
   const getChartOptions = useCallback((): ChartOptions => {
     const c = customization;
     const dark = isDarkMode;
-    const gridColor = dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)';
+    const hasPalette = !!c.selectedPalette;
+    const gridColor = hasPalette
+      ? SEMANTIC_COLORS.gray3
+      : (dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)');
+    const titleColor = hasPalette
+      ? (dark ? SEMANTIC_COLORS.white : SEMANTIC_COLORS.black)
+      : (dark ? '#f9fafb' : c.titleFont.color);
+    const legendColor = hasPalette
+      ? (dark ? SEMANTIC_COLORS.white : SEMANTIC_COLORS.black)
+      : (dark ? '#d1d5db' : c.legendFont.color);
+    const tickColor = hasPalette
+      ? SEMANTIC_COLORS.gray3
+      : (dark ? '#9ca3af' : c.tickLabelFont.color);
+    const axisColor = hasPalette
+      ? (dark ? SEMANTIC_COLORS.white : SEMANTIC_COLORS.black)
+      : (dark ? '#d1d5db' : c.axisLabelFont.color);
 
     const baseOptions: ChartOptions = {
       responsive: true,
@@ -168,7 +184,7 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
         title: {
           display: !!c.title,
           text: c.title,
-          color: dark ? '#f9fafb' : c.titleFont.color,
+          color: titleColor,
           font: {
             family: c.titleFont.family,
             size: c.titleFont.size,
@@ -179,7 +195,7 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
           display: c.showLegend,
           position: c.legendPosition,
           labels: {
-            color: dark ? '#d1d5db' : c.legendFont.color,
+            color: legendColor,
             font: {
               family: c.legendFont.family,
               size: c.legendFont.size,
@@ -214,7 +230,7 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
             color: gridColor,
           },
           ticks: {
-            color: dark ? '#9ca3af' : c.tickLabelFont.color,
+            color: tickColor,
             font: {
               family: c.tickLabelFont.family,
               size: c.tickLabelFont.size,
@@ -224,7 +240,7 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
           title: {
             display: c.showAxisLabels && !!c.xAxisLabel,
             text: c.xAxisLabel,
-            color: dark ? '#d1d5db' : c.axisLabelFont.color,
+            color: axisColor,
             font: {
               family: c.axisLabelFont.family,
               size: c.axisLabelFont.size,
@@ -239,7 +255,7 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
             color: gridColor,
           },
           ticks: {
-            color: dark ? '#9ca3af' : c.tickLabelFont.color,
+            color: tickColor,
             font: {
               family: c.tickLabelFont.family,
               size: c.tickLabelFont.size,
@@ -249,7 +265,7 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
           title: {
             display: c.showAxisLabels && !!c.yAxisLabel,
             text: c.yAxisLabel,
-            color: dark ? '#d1d5db' : c.axisLabelFont.color,
+            color: axisColor,
             font: {
               family: c.axisLabelFont.family,
               size: c.axisLabelFont.size,

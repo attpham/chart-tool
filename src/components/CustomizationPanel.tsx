@@ -54,7 +54,7 @@ const Slider: React.FC<SliderProps> = ({ label, value, min, max, step = 1, onCha
       step={step}
       value={value}
       onChange={e => onChange(Number(e.target.value))}
-      className="w-full h-1.5 rounded-full appearance-none bg-gray-200 dark:bg-gray-600 accent-indigo-500"
+      className="w-full h-1.5 rounded-full appearance-none bg-gray-200 dark:bg-gray-600 accent-accent"
     />
   </div>
 );
@@ -69,7 +69,7 @@ const Toggle: React.FC<ToggleProps> = ({ label, checked, onChange }) => (
   <label className="flex items-center justify-between cursor-pointer">
     <span className="text-sm text-gray-600 dark:text-gray-400">{label}</span>
     <div
-      className={`relative w-10 h-5 rounded-full transition-colors ${checked ? 'bg-indigo-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+      className={`relative w-10 h-5 rounded-full transition-colors ${checked ? 'bg-accent' : 'bg-gray-300 dark:bg-gray-600'}`}
       onClick={() => onChange(!checked)}
     >
       <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${checked ? 'translate-x-5' : ''}`} />
@@ -212,7 +212,7 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
               onClick={() => onApplyPalette(palette.id)}
               className={`w-full flex items-center gap-3 p-2 rounded-lg border transition-colors text-left ${
                 customization.selectedPalette === palette.id
-                  ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20'
+                  ? 'border-accent bg-accent-1 dark:bg-accent-6/20'
                   : 'border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700/50'
               }`}
             >

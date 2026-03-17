@@ -28,8 +28,8 @@ export const ChartTypeSelector: React.FC<ChartTypeSelectorProps> = ({ selectedTy
             onClick={() => onChange(type)}
             className={`flex flex-col items-center gap-1 p-2 rounded-lg border text-xs font-medium transition-all ${
               selectedType === type
-                ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300'
-                : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:border-indigo-300 hover:bg-indigo-50/50 dark:hover:bg-indigo-900/20'
+                ? 'border-accent bg-accent-1 dark:bg-accent-6/40 text-accent-5 dark:text-accent-2'
+                : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:border-accent-3 hover:bg-accent-1/50 dark:hover:bg-accent-6/20'
             }`}
           >
             <span className="text-lg">{icon}</span>

@@ -1,26 +1,17 @@
 import { ChartCustomization, ChartData, DatasetConfig } from '../types/chart';
+import { SEMANTIC_COLORS } from '../data/palettes';
 
+// Refactor palette colors: Green 4 primary, Green 2 secondary, then remaining greens
 export const DEFAULT_COLORS = [
-  '#6366f1',
-  '#f59e0b',
-  '#10b981',
-  '#ef4444',
-  '#3b82f6',
-  '#8b5cf6',
-  '#ec4899',
-  '#14b8a6',
+  '#0FBF3E', // Green 4 (primary)
+  '#8CF2A6', // Green 2 (secondary)
+  '#BFFFD1', // Green 1
+  '#5FED83', // Green 3
+  '#08872B', // Green 5
+  '#0A241B', // Green 6
 ];
 
-export const DEFAULT_BORDER_COLORS = [
-  '#4f46e5',
-  '#d97706',
-  '#059669',
-  '#dc2626',
-  '#2563eb',
-  '#7c3aed',
-  '#db2777',
-  '#0d9488',
-];
+export const DEFAULT_BORDER_COLORS = DEFAULT_COLORS;
 
 export function createDefaultDatasetConfig(index: number, label: string): DatasetConfig {
   return {
@@ -50,10 +41,10 @@ export const DEFAULT_CHART_DATA: ChartData = {
 
 export const DEFAULT_CUSTOMIZATION: ChartCustomization = {
   title: 'My Chart',
-  titleFont: { family: 'Mona Sans', size: 20, weight: 'bold', color: '#1f2937' },
-  axisLabelFont: { family: 'Mona Sans', size: 14, weight: 'bold', color: '#374151' },
-  tickLabelFont: { family: 'Mona Sans Mono', size: 12, weight: 'normal', color: '#6b7280' },
-  legendFont: { family: 'Mona Sans', size: 12, weight: 'normal', color: '#374151' },
+  titleFont: { family: 'Mona Sans', size: 20, weight: 'bold', color: SEMANTIC_COLORS.black },
+  axisLabelFont: { family: 'Mona Sans', size: 14, weight: 'bold', color: SEMANTIC_COLORS.black },
+  tickLabelFont: { family: 'Mona Sans Mono', size: 12, weight: 'normal', color: SEMANTIC_COLORS.gray3 },
+  legendFont: { family: 'Mona Sans', size: 12, weight: 'normal', color: SEMANTIC_COLORS.black },
   showLegend: true,
   legendPosition: 'top',
   showGridlines: true,
@@ -81,4 +72,5 @@ export const DEFAULT_CUSTOMIZATION: ChartCustomization = {
     createDefaultDatasetConfig(0, 'Dataset 1'),
     createDefaultDatasetConfig(1, 'Dataset 2'),
   ],
+  selectedPalette: 'refactor',
 };

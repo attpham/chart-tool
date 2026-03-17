@@ -9,6 +9,19 @@ const AREA_Y = 0.5;
 const AREA_W = 9.0;
 const AREA_H = 6.5;
 
+// ── Border-width conversion constants ────────────────────────────────────────
+/** Minimum border width in PowerPoint points. */
+const MIN_BORDER_PT = 0.5;
+/** Scale factor converting Chart.js border-width pixels to PowerPoint points. */
+const BORDER_WIDTH_SCALE = 0.75;
+
+// ── Arc sampling constant ─────────────────────────────────────────────────────
+/**
+ * Number of polygon line segments per radian when approximating arc curves.
+ * 30 steps/radian ≈ one segment every 2°, which produces visually smooth curves.
+ */
+const ARC_STEPS_PER_RADIAN = 30;
+
 // ── Coordinate conversion ─────────────────────────────────────────────────────
 
 /** Canvas pixel x → slide inch x */
@@ -119,15 +132,19 @@ function addLine(
 
 /**
  * Add a filled closed polygon using PptxGenJS custGeom.
- * @param absPoints  Array of points in slide-absolute inch coordinates.
- * @param fillHex    6-char hex fill colour (no '#').
- * @param transparency  0–100 (percentage transparent; 0 = opaque).
+ * @param absPoints    Array of points in slide-absolute inch coordinates.
+ * @param fillHex      6-char hex fill colour (no '#').
+ * @param transparency 0–100 (percentage transparent; 0 = opaque).
+ * @param borderHex    Optional 6-char hex border colour.  When omitted (or empty) no border is drawn.
+ * @param borderPt     Border width in points.  Only used when borderHex is provided.
  */
 function addPolygon(
   slide: pptxgen.Slide,
   absPoints: { x: number; y: number }[],
   fillHex: string,
   transparency = 0,
+  borderHex?: string,
+  borderPt = 0,
 ): void {
   if (absPoints.length < 3) return;
   const xs = absPoints.map(p => p.x);
@@ -151,6 +168,10 @@ function addPolygon(
     { x: 0, y: 0, close: true },
   );
 
+  const lineOpts = borderHex && borderPt > 0
+    ? { color: borderHex, width: borderPt }
+    : { type: 'none' as const };
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   slide.addShape('custGeom' as pptxgen.SHAPE_NAME, {
     x: minX,
@@ -158,7 +179,7 @@ function addPolygon(
     w,
     h,
     fill: { color: fillHex, transparency },
-    line: { type: 'none' },
+    line: lineOpts,
     points: pts,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any);
@@ -361,6 +382,111 @@ function addScatterDataset(
       fill: { color: fillHex },
       line: { color: borderHex, width: borderPt },
     });
+  }
+}
+
+// ── Pie / doughnut shapes ─────────────────────────────────────────────────────
+
+/**
+ * Approximate a single pie slice or doughnut segment as a filled polygon and
+ * add it to the slide.
+ *
+ * The arc is sampled at small angular steps so the curve looks smooth.
+ */
+function addPieSlice(
+  slide: pptxgen.Slide,
+  cx: number,       // centre x in slide inches
+  cy: number,       // centre y in slide inches
+  outerR: number,   // outer radius in slide inches
+  innerR: number,   // inner radius in slide inches (0 for pie)
+  startAngle: number, // radians
+  endAngle: number,   // radians
+  fillHex: string,
+  borderHex: string,
+  borderPt: number,
+): void {
+  const angleSpan = endAngle - startAngle;
+  const numSteps = Math.max(Math.ceil(Math.abs(angleSpan) * ARC_STEPS_PER_RADIAN), 2);
+
+  const outerPoints: { x: number; y: number }[] = [];
+  for (let i = 0; i <= numSteps; i++) {
+    const angle = startAngle + (angleSpan * i) / numSteps;
+    outerPoints.push({
+      x: cx + Math.cos(angle) * outerR,
+      y: cy + Math.sin(angle) * outerR,
+    });
+  }
+
+  let polygonPoints: { x: number; y: number }[];
+
+  if (innerR <= 0) {
+    // Pie slice: centre → outer arc → back to centre (close)
+    polygonPoints = [{ x: cx, y: cy }, ...outerPoints];
+  } else {
+    // Doughnut segment: outer arc forward + inner arc reversed
+    const innerPoints: { x: number; y: number }[] = [];
+    for (let i = numSteps; i >= 0; i--) {
+      const angle = startAngle + (angleSpan * i) / numSteps;
+      innerPoints.push({
+        x: cx + Math.cos(angle) * innerR,
+        y: cy + Math.sin(angle) * innerR,
+      });
+    }
+    polygonPoints = [...outerPoints, ...innerPoints];
+  }
+
+  addPolygon(slide, polygonPoints, fillHex, 0, borderHex, borderPt);
+}
+
+/**
+ * Decompose all arc elements in dataset 0 of a pie or doughnut chart into
+ * individual native PowerPoint polygon shapes.
+ */
+function addPieDoughnutDataset(
+  slide: pptxgen.Slide,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  chartInstance: ChartJS,
+  W: number,
+  H: number,
+): void {
+  const meta = chartInstance.getDatasetMeta(0);
+
+  for (let j = 0; j < meta.data.length; j++) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const el = meta.data[j] as any;
+
+    const cx = el.x as number;
+    const cy = el.y as number;
+    const startAngle = el.startAngle as number;
+    const endAngle = el.endAngle as number;
+    const outerRadius = el.outerRadius as number;
+    const innerRadius = (el.innerRadius as number) ?? 0;
+
+    if (outerRadius <= 0) continue;
+
+    // Resolve colours from the arc element's own resolved options
+    const fillColor: string = el.options?.backgroundColor ?? '#CCCCCC';
+    const borderColor: string = el.options?.borderColor ?? '#FFFFFF';
+    const borderWidth: number = el.options?.borderWidth ?? 2;
+
+    // Average the horizontal and vertical scale factors so that the rendered
+    // circle stays round even when the slide aspect ratio (AREA_W/AREA_H)
+    // differs from the canvas aspect ratio (W/H).
+    const scaleAvg = ((AREA_W / W) + (AREA_H / H)) / 2;
+    const outerR = outerRadius * scaleAvg;
+    const innerR = innerRadius * scaleAvg;
+    const slideCx = px2x(cx, W);
+    const slideCy = px2y(cy, H);
+
+    addPieSlice(
+      slide,
+      slideCx, slideCy,
+      outerR, innerR,
+      startAngle, endAngle,
+      toHex(fillColor),
+      toHex(borderColor),
+      Math.max(MIN_BORDER_PT, borderWidth * BORDER_WIDTH_SCALE),
+    );
   }
 }
 
@@ -663,12 +789,9 @@ function addLegend(
 /**
  * Export the current chart to a PowerPoint (.pptx) file.
  *
- * For cartesian chart types (bar, line, area, scatter) all elements are
+ * All supported chart types (bar, line, area, scatter, pie, doughnut) are
  * decomposed into native PowerPoint shapes and editable text boxes for a
  * fully WYSIWYG, editable result.
- *
- * For pie and doughnut charts a PNG image fallback is used (Phase 2 will add
- * full native support for those types).
  */
 export async function exportToPptx(
   chartInstance: ChartJS,
@@ -680,19 +803,32 @@ export async function exportToPptx(
   const title = customization.title || 'Chart';
 
   if (chartType === 'pie' || chartType === 'doughnut') {
-    // ── PNG fallback for pie / doughnut (Phase 2 will decompose these too) ──
-    const imageData = chartInstance.canvas.toDataURL('image/png');
-    slide.addText(title, {
-      x: 0.5,
-      y: 0.25,
-      w: 9,
-      h: 0.75,
-      fontSize: 24,
-      bold: true,
-      color: '363636',
-      align: 'center',
-    });
-    slide.addImage({ data: imageData, x: 0.5, y: 1.25, w: 9, h: 5.5 });
+    // ── Fully-editable decomposition for pie / doughnut ──────────────────────
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const c = chartInstance as any;
+    const W: number = c.width;
+    const H: number = c.height;
+
+    if (!W || !H) {
+      throw new Error(
+        `Chart dimensions not available (W=${W}, H=${H}). ` +
+        'Ensure the chart is visible before exporting.',
+      );
+    }
+
+    // Use the full canvas as the chart area for pie/doughnut (no cartesian scales)
+    const ca = c.chartArea ?? { left: 0, top: 0, right: W, bottom: H };
+
+    // 1. Pie / doughnut slices as native shapes
+    addPieDoughnutDataset(slide, chartInstance, W, H);
+
+    // 2. Chart title
+    addChartTitle(slide, c, customization, W, H, ca);
+
+    // 3. Legend
+    if (customization.showLegend) {
+      addLegend(slide, c, customization, W, H);
+    }
   } else {
     // ── Fully-editable decomposition for cartesian chart types ───────────────
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

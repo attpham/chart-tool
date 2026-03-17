@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -56,6 +56,8 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
   isDarkMode,
   chartRef,
 }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerHeight, setContainerHeight] = useState(0);
   const getPieColors = useCallback((dataLength: number): string[] => {
     return customization.datasetConfigs.slice(0, dataLength).map(c =>
       typeof c.backgroundColor === 'string' ? c.backgroundColor : c.backgroundColor[0]
@@ -267,6 +269,20 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(entries => {
+      if (entries[0]) setContainerHeight(entries[0].contentRect.height);
+    });
+    ro.observe(el);
+    setContainerHeight(el.clientHeight);
+    return () => ro.disconnect();
+  }, []);
+
+  const aspectRatio = customization.aspectRatio ?? 2;
+  const maxWidth = containerHeight > 10 ? containerHeight * aspectRatio : undefined;
+
   const chartProps = {
     ref: chartRef as React.Ref<ChartJS>,
     data,
@@ -293,8 +309,8 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
   };
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-      <div className="w-full">
+    <div ref={containerRef} className="flex-1 flex flex-col items-center justify-center p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+      <div className="w-full" style={maxWidth !== undefined ? { maxWidth } : undefined}>
         {renderChart()}
       </div>
     </div>

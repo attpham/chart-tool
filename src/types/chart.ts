@@ -1,5 +1,8 @@
 export type ChartType = 'bar' | 'line' | 'pie' | 'doughnut' | 'scatter' | 'area';
 
+import type { PaletteId } from '../data/palettes';
+export type { PaletteId };
+
 export type FontFamily = 'Mona Sans' | 'Mona Sans Display' | 'Mona Sans Mono' | 'Inter' | 'Roboto' | 'Montserrat' | 'Lato' | 'Georgia';
 
 export type PointStyle = 'circle' | 'cross' | 'crossRot' | 'dash' | 'line' | 'rect' | 'rectRounded' | 'rectRot' | 'star' | 'triangle';
@@ -57,6 +60,7 @@ export interface ChartCustomization {
   barConfig: BarConfig;
   lineConfig: LineConfig;
   datasetConfigs: DatasetConfig[];
+  selectedPalette?: PaletteId;
 }
 
 export interface ChartData {

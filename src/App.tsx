@@ -8,6 +8,7 @@ import { ThemeToggle } from './components/ThemeToggle';
 import { useChartData } from './hooks/useChartData';
 import { useChartOptions } from './hooks/useChartOptions';
 import { ChartType } from './types/chart';
+import { PaletteId } from './data/palettes';
 import { exportToPptx } from './utils/exportToPptx';
 
 export default function App() {
@@ -31,6 +32,7 @@ export default function App() {
     updateCustomization,
     updateDatasetConfig,
     syncDatasetConfigs,
+    applyPalette,
   } = useChartOptions();
 
   useEffect(() => {
@@ -49,6 +51,10 @@ export default function App() {
     if (!chartRef.current) throw new Error('Chart not ready');
     await exportToPptx(chartRef.current, customization, chartType);
   }, [customization, chartType]);
+
+  const handleApplyPalette = useCallback((paletteId: PaletteId) => {
+    applyPalette(paletteId, isDarkMode);
+  }, [applyPalette, isDarkMode]);
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 transition-colors">
@@ -108,6 +114,7 @@ export default function App() {
             customization={customization}
             onUpdateCustomization={updateCustomization}
             onUpdateDatasetConfig={updateDatasetConfig}
+            onApplyPalette={handleApplyPalette}
             onExport={handleExport}
           />
         </div>

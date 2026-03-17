@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { ChartCustomization, ChartType, FontFamily, PointStyle, LegendPosition } from '../types/chart';
+import { ChartCustomization, ChartType, FontFamily, PointStyle, LegendPosition, PaletteId } from '../types/chart';
+import { PALETTES } from '../data/palettes';
 import { ColorPicker } from './ColorPicker';
 import { ExportButton } from './ExportButton';
 
@@ -133,6 +134,7 @@ interface CustomizationPanelProps {
   customization: ChartCustomization;
   onUpdateCustomization: <K extends keyof ChartCustomization>(key: K, value: ChartCustomization[K]) => void;
   onUpdateDatasetConfig: (index: number, config: Partial<ChartCustomization['datasetConfigs'][0]>) => void;
+  onApplyPalette: (paletteId: PaletteId) => void;
   onExport: () => Promise<void>;
 }
 
@@ -141,6 +143,7 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
   customization,
   onUpdateCustomization,
   onUpdateDatasetConfig,
+  onApplyPalette,
   onExport,
 }) => {
   const isCartesian = !['pie', 'doughnut'].includes(chartType);
@@ -198,6 +201,34 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
             </select>
           </div>
         )}
+      </Section>
+
+      {/* Theme / Palette */}
+      <Section title="Theme">
+        <div className="space-y-2">
+          {PALETTES.map(palette => (
+            <button
+              key={palette.id}
+              onClick={() => onApplyPalette(palette.id)}
+              className={`w-full flex items-center gap-3 p-2 rounded-lg border transition-colors text-left ${
+                customization.selectedPalette === palette.id
+                  ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20'
+                  : 'border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+              }`}
+            >
+              <span className="text-xs font-medium text-gray-700 dark:text-gray-300 w-14 shrink-0">{palette.name}</span>
+              <div className="flex gap-0.5 flex-wrap">
+                {palette.colors.slice(0, 8).map((color, i) => (
+                  <div
+                    key={i}
+                    className="w-4 h-4 rounded-sm border border-black/10"
+                    style={{ backgroundColor: color }}
+                  />
+                ))}
+              </div>
+            </button>
+          ))}
+        </div>
       </Section>
 
       {/* Colors */}

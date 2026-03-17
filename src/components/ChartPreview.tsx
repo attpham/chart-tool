@@ -58,6 +58,7 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerHeight, setContainerHeight] = useState(0);
+  const [containerWidth, setContainerWidth] = useState(0);
   const getPieColors = useCallback((dataLength: number): string[] => {
     return customization.datasetConfigs.slice(0, dataLength).map(c =>
       typeof c.backgroundColor === 'string' ? c.backgroundColor : c.backgroundColor[0]
@@ -273,15 +274,26 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
     const el = containerRef.current;
     if (!el) return;
     const ro = new ResizeObserver(entries => {
-      if (entries[0]) setContainerHeight(entries[0].contentRect.height);
+      if (entries[0]) {
+        setContainerHeight(entries[0].contentRect.height);
+        setContainerWidth(entries[0].contentRect.width);
+      }
     });
     ro.observe(el);
     setContainerHeight(el.clientHeight);
+    setContainerWidth(el.clientWidth);
     return () => ro.disconnect();
   }, []);
 
   const aspectRatio = customization.aspectRatio ?? 2;
-  const maxWidth = containerHeight > 10 ? containerHeight * aspectRatio : undefined;
+  const containerReady = containerHeight > 10 && containerWidth > 10;
+  const isWidthConstrained = containerReady && containerWidth / aspectRatio <= containerHeight;
+  const computedWidth = containerReady
+    ? isWidthConstrained ? containerWidth : containerHeight * aspectRatio
+    : undefined;
+  const computedHeight = containerReady
+    ? isWidthConstrained ? containerWidth / aspectRatio : containerHeight
+    : undefined;
 
   const chartProps = {
     ref: chartRef as React.Ref<ChartJS>,
@@ -310,7 +322,7 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
 
   return (
     <div ref={containerRef} className="flex-1 flex flex-col items-center justify-center p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-      <div className="w-full" style={maxWidth !== undefined ? { maxWidth } : undefined}>
+      <div className="w-full" style={{ maxWidth: computedWidth, maxHeight: computedHeight, margin: '0 auto' }}>
         {renderChart()}
       </div>
     </div>

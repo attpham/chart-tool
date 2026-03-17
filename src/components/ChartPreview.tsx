@@ -93,8 +93,8 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
           return {
             label: ds.label,
             data: ds.data.map((y, x) => ({ x, y: y ?? 0 })),
-            backgroundColor: bgColor || '#6366f1',
-            borderColor: typeof cfg?.borderColor === 'string' ? cfg.borderColor : '#4f46e5',
+            backgroundColor: bgColor || '#0FBF3E',
+            borderColor: typeof cfg?.borderColor === 'string' ? cfg.borderColor : '#08872B',
             borderWidth: cfg?.borderWidth ?? 2,
             pointStyle: customization.lineConfig.pointStyle as string,
             pointRadius: customization.lineConfig.pointRadius,
@@ -119,8 +119,8 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
         const baseDataset = {
           label: ds.label,
           data: ds.data.map(d => d ?? 0),
-          backgroundColor: bgColor || '#6366f1',
-          borderColor: typeof cfg?.borderColor === 'string' ? cfg.borderColor : '#4f46e5',
+          backgroundColor: bgColor || '#0FBF3E',
+          borderColor: typeof cfg?.borderColor === 'string' ? cfg.borderColor : '#08872B',
           borderWidth: cfg?.borderWidth ?? 2,
         };
 

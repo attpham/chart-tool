@@ -25,7 +25,7 @@ export const ExportButton: React.FC<ExportButtonProps> = ({ onExport }) => {
       <button
         onClick={handleExport}
         disabled={isExporting}
-        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-semibold rounded-lg transition-colors shadow-sm"
+        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-accent hover:bg-accent-5 disabled:bg-accent-3 text-white font-semibold rounded-lg transition-colors shadow-sm"
       >
         {isExporting ? (
           <>

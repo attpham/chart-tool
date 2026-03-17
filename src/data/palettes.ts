@@ -17,7 +17,7 @@ export const PALETTES: ColorPalette[] = [
   {
     id: 'refactor',
     name: 'Refactor',
-    colors: ['#BFFFD1', '#8CF2A6', '#5FED83', '#0FBF3E', '#08872B', '#0A241B'],
+    colors: ['#0FBF3E', '#8CF2A6', '#BFFFD1', '#5FED83', '#08872B', '#0A241B'],
   },
   {
     id: 'devex',

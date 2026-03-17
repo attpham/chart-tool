@@ -46,14 +46,14 @@ export const DataTable: React.FC<DataTableProps> = ({
         <div className="flex gap-1">
           <button
             onClick={onAddColumn}
-            className="px-2 py-1 text-xs bg-indigo-600 hover:bg-indigo-700 text-white rounded transition-colors"
+            className="px-2 py-1 text-xs bg-accent hover:bg-accent-5 text-white rounded transition-colors"
             title="Add dataset column"
           >
             + Col
           </button>
           <button
             onClick={onAddRow}
-            className="px-2 py-1 text-xs bg-indigo-600 hover:bg-indigo-700 text-white rounded transition-colors"
+            className="px-2 py-1 text-xs bg-accent hover:bg-accent-5 text-white rounded transition-colors"
             title="Add data row"
           >
             + Row

@@ -2,10 +2,11 @@ import pptxgen from 'pptxgenjs';
 import { Chart as ChartJS } from 'chart.js';
 import { ChartCustomization, ChartType } from '../types/chart';
 
-// PptxGenJS may expose ShapeType on the default export or as a separate property
-// depending on the bundler. Resolve it defensively.
-const ShapeType: typeof pptxgen.ShapeType =
-  pptxgen.ShapeType ?? (pptxgen as any).default?.ShapeType;
+// PptxGenJS ShapeType enum values are plain strings at runtime.
+// Define them explicitly to avoid CJS/ESM interop issues with Vite.
+const SHAPE_LINE = 'line' as pptxgen.SHAPE_NAME;
+const SHAPE_RECT = 'rect' as pptxgen.SHAPE_NAME;
+const SHAPE_ELLIPSE = 'ellipse' as pptxgen.SHAPE_NAME;
 
 // ── Slide layout constants ────────────────────────────────────────────────────
 /** The chart canvas content is mapped to this area on the slide (all in inches). */
@@ -121,7 +122,7 @@ function addLine(
   const w = Math.abs(dx);
   const h = Math.abs(dy);
   if (w < 0.0005 && h < 0.0005) return; // skip zero-length lines
-  slide.addShape(ShapeType.line, {
+  slide.addShape(SHAPE_LINE, {
     x: Math.min(x1, x2),
     y: Math.min(y1, y2),
     w: Math.max(w, 0.001),
@@ -275,7 +276,7 @@ function addBarDataset(
     const h = px2h(height, H);
     const rectRadius = borderRadiusPx > 0 ? px2w(borderRadiusPx, W) : undefined;
 
-    slide.addShape(ShapeType.rect, {
+    slide.addShape(SHAPE_RECT, {
       x,
       y,
       w,
@@ -351,7 +352,7 @@ function addPointDataset(
 
   for (const el of elements) {
     if (el.skip) continue;
-    slide.addShape(ShapeType.ellipse, {
+    slide.addShape(SHAPE_ELLIPSE, {
       x: px2x(el.x, W) - pointW / 2,
       y: px2y(el.y, H) - pointH / 2,
       w: pointW,
@@ -379,7 +380,7 @@ function addScatterDataset(
 
   for (const el of elements) {
     if (el.skip) continue;
-    slide.addShape(ShapeType.ellipse, {
+    slide.addShape(SHAPE_ELLIPSE, {
       x: px2x(el.x, W) - pointW / 2,
       y: px2y(el.y, H) - pointH / 2,
       w: pointW,
@@ -763,7 +764,7 @@ function addLegend(
     }
 
     // Colour swatch
-    slide.addShape(ShapeType.rect, {
+    slide.addShape(SHAPE_RECT, {
       x: itemX,
       y: itemY + (lineH - swatchSizeH) / 2,
       w: swatchSize,

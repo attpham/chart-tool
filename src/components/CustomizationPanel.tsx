@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChartCustomization, ChartType, FontFamily, PointStyle, LegendPosition, PaletteId, DataLabelFormat, DataLabelPosition, NumberFormatType } from '../types/chart';
+import { ChartCustomization, ChartType, FontFamily, PointStyle, LegendPosition, PaletteId, DataLabelFormat, DataLabelPosition, NumberFormatType, RadarConfig } from '../types/chart';
 import { PALETTES } from '../data/palettes';
 import { ColorPicker } from './ColorPicker';
 import { ExportButton } from './ExportButton';
@@ -147,9 +147,11 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
   onApplyPalette,
   onExport,
 }) => {
-  const isCartesian = !['pie', 'doughnut'].includes(chartType);
+  const isCartesian = !['pie', 'doughnut', 'radar', 'polarArea'].includes(chartType);
   const isBar = chartType === 'bar';
   const isLineOrArea = chartType === 'line' || chartType === 'area';
+  const isRadar = chartType === 'radar';
+  const isProportionChart = chartType === 'pie' || chartType === 'doughnut' || chartType === 'polarArea';
 
   return (
     <div className="h-full overflow-y-auto">
@@ -345,6 +347,38 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
             checked={customization.barConfig.grouped}
             onChange={v => onUpdateCustomization('barConfig', { ...customization.barConfig, grouped: v })}
           />
+          <Toggle
+            label="Horizontal"
+            checked={customization.barConfig.horizontal}
+            onChange={v => onUpdateCustomization('barConfig', { ...customization.barConfig, horizontal: v })}
+          />
+        </Section>
+      )}
+
+      {/* Radar Options */}
+      {isRadar && (
+        <Section title="Radar Options" defaultOpen={false}>
+          <Toggle
+            label="Fill"
+            checked={customization.radarConfig.fill}
+            onChange={v => onUpdateCustomization('radarConfig', { ...customization.radarConfig, fill: v } as RadarConfig)}
+          />
+          <Slider
+            label="Line Tension"
+            value={customization.radarConfig.tension}
+            min={0}
+            max={1}
+            step={0.05}
+            onChange={v => onUpdateCustomization('radarConfig', { ...customization.radarConfig, tension: v } as RadarConfig)}
+          />
+          <Slider
+            label="Point Radius"
+            value={customization.radarConfig.pointRadius}
+            min={0}
+            max={20}
+            onChange={v => onUpdateCustomization('radarConfig', { ...customization.radarConfig, pointRadius: v } as RadarConfig)}
+            unit="px"
+          />
         </Section>
       )}
 
@@ -409,7 +443,7 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
                 <option value="auto">Auto</option>
               </select>
             </div>
-            {!['pie', 'doughnut'].includes(chartType) ? null : (
+            {!isProportionChart ? null : (
               <div>
                 <label className="text-xs text-gray-500 dark:text-gray-400">Format</label>
                 <select

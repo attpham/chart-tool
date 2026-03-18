@@ -289,6 +289,45 @@ function addBarDataset(
   }
 }
 
+function addHorizontalBarDataset(
+  slide: pptxgen.Slide,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  elements: any[],
+  W: number,
+  H: number,
+  fillHex: string,
+  borderHex: string,
+  borderPt: number,
+  borderRadiusPx: number,
+): void {
+  for (const el of elements) {
+    // For horizontal bars: el.x is the value end, el.base is the baseline,
+    // el.y is the bar center, el.height is the bar thickness.
+    if (el.y == null || el.base == null) continue;
+    const barH = Math.abs(el.height ?? 0);
+    if (barH <= 0) continue;
+    const left = Math.min(el.x, el.base);
+    const width = Math.abs(el.base - el.x);
+    if (width <= 0) continue;
+
+    const x = px2x(left, W);
+    const y = px2y(el.y - barH / 2, H);
+    const w = px2w(width, W);
+    const h = px2h(barH, H);
+    const rectRadius = borderRadiusPx > 0 ? px2h(borderRadiusPx, H) : undefined;
+
+    slide.addShape(SHAPE_RECT, {
+      x,
+      y,
+      w,
+      h,
+      fill: { color: fillHex },
+      line: { color: borderHex, width: borderPt },
+      ...(rectRadius != null ? { rectRadius } : {}),
+    });
+  }
+}
+
 function addLineDataset(
   slide: pptxgen.Slide,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -489,6 +528,142 @@ function addPieDoughnutDataset(
       slide,
       slideCx, slideCy,
       outerR, innerR,
+      startAngle, endAngle,
+      toHex(fillColor),
+      toHex(borderColor),
+      Math.max(MIN_BORDER_PT, borderWidth * BORDER_WIDTH_SCALE),
+    );
+  }
+}
+
+// ── Radar / Polar Area shapes ─────────────────────────────────────────────────
+
+/**
+ * Export a radar chart as native PowerPoint shapes.
+ * Draws concentric polygon grid, angle lines, dataset filled polygons, and point markers.
+ */
+function addRadarDatasets(
+  slide: pptxgen.Slide,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  chartInstance: ChartJS,
+  customization: ChartCustomization,
+  W: number,
+  H: number,
+): void {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const c = chartInstance as any;
+  const scale = c.scales?.r;
+  if (!scale) return;
+
+  const cx = px2x(scale.xCenter, W);
+  const cy = px2y(scale.yCenter, H);
+  const scaleAvg = ((AREA_W / W) + (AREA_H / H)) / 2;
+
+  const numAxes = chartInstance.data.labels?.length ?? 0;
+  if (numAxes < 3) return;
+
+  // Draw concentric polygon grid rings
+  if (customization.showGridlines) {
+    const gridColor = resolveGridColor('rgba(0,0,0,0.08)');
+    const tickCount = scale.ticks?.length ?? 5;
+    for (let t = 1; t <= tickCount; t++) {
+      const r = scale.getDistanceFromCenterForValue(scale.ticks[t - 1]?.value ?? t) * scaleAvg;
+      if (r <= 0) continue;
+      const pts: { x: number; y: number }[] = [];
+      for (let i = 0; i < numAxes; i++) {
+        const angle = (Math.PI * 2 * i) / numAxes - Math.PI / 2;
+        pts.push({ x: cx + Math.cos(angle) * r, y: cy + Math.sin(angle) * r });
+      }
+      // Draw polygon ring edges
+      for (let i = 0; i < pts.length; i++) {
+        const next = pts[(i + 1) % pts.length];
+        addLine(slide, pts[i].x, pts[i].y, next.x, next.y, gridColor, 0.5);
+      }
+    }
+    // Draw angle lines from center to outer ring
+    const outerR = scale.drawingArea * scaleAvg;
+    for (let i = 0; i < numAxes; i++) {
+      const angle = (Math.PI * 2 * i) / numAxes - Math.PI / 2;
+      const edgeX = cx + Math.cos(angle) * outerR;
+      const edgeY = cy + Math.sin(angle) * outerR;
+      addLine(slide, cx, cy, edgeX, edgeY, gridColor, 0.5);
+    }
+  }
+
+  // Draw each dataset as a polygon
+  const numDatasets = chartInstance.data.datasets.length;
+  for (let di = 0; di < numDatasets; di++) {
+    const meta = chartInstance.getDatasetMeta(di);
+    const cfg = customization.datasetConfigs[di] ?? customization.datasetConfigs[0];
+    if (!cfg) continue;
+
+    const fillHex = hexNoHash(cfg.backgroundColor);
+    const borderHex = hexNoHash(cfg.borderColor);
+    const borderPt = Math.max(MIN_BORDER_PT, cfg.borderWidth * BORDER_WIDTH_SCALE);
+
+    const pts: { x: number; y: number }[] = meta.data
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .filter((el: any) => !el.skip && el.x != null)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .map((el: any) => ({ x: px2x(el.x, W), y: px2y(el.y, H) }));
+
+    if (pts.length >= 3) {
+      addPolygon(slide, pts, fillHex, 70, borderHex, borderPt);
+      // Draw border lines
+      for (let i = 0; i < pts.length; i++) {
+        const next = pts[(i + 1) % pts.length];
+        addLine(slide, pts[i].x, pts[i].y, next.x, next.y, borderHex, borderPt);
+      }
+    }
+
+    // Draw point markers
+    const pointR = 3 * scaleAvg;
+    const pointW = pointR * 2;
+    for (const pt of pts) {
+      slide.addShape(SHAPE_ELLIPSE, {
+        x: pt.x - pointW / 2,
+        y: pt.y - pointW / 2,
+        w: pointW,
+        h: pointW,
+        fill: { color: fillHex },
+        line: { color: borderHex, width: borderPt },
+      });
+    }
+  }
+}
+
+/**
+ * Export a polar area chart as native PowerPoint shapes (wedge segments with varying radii).
+ */
+function addPolarAreaDatasets(
+  slide: pptxgen.Slide,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  chartInstance: ChartJS,
+  W: number,
+  H: number,
+): void {
+  const meta = chartInstance.getDatasetMeta(0);
+  const scaleAvg = ((AREA_W / W) + (AREA_H / H)) / 2;
+
+  for (let j = 0; j < meta.data.length; j++) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const el = meta.data[j] as any;
+    const cx = px2x(el.x, W);
+    const cy = px2y(el.y, H);
+    const startAngle: number = el.startAngle ?? 0;
+    const endAngle: number = el.endAngle ?? 0;
+    const outerRadius: number = el.outerRadius ?? 0;
+    if (outerRadius <= 0) continue;
+
+    const outerR = outerRadius * scaleAvg;
+    const fillColor: string = el.options?.backgroundColor ?? '#CCCCCC';
+    const borderColor: string = el.options?.borderColor ?? '#FFFFFF';
+    const borderWidth: number = el.options?.borderWidth ?? 2;
+
+    addPieSlice(
+      slide,
+      cx, cy,
+      outerR, 0,
       startAngle, endAngle,
       toHex(fillColor),
       toHex(borderColor),
@@ -1032,8 +1207,8 @@ export async function exportToPptx(
   const slide = pptx.addSlide();
   const title = customization.title || 'Chart';
 
-  if (chartType === 'pie' || chartType === 'doughnut') {
-    // ── Fully-editable decomposition for pie / doughnut ──────────────────────
+  if (chartType === 'pie' || chartType === 'doughnut' || chartType === 'polarArea') {
+    // ── Fully-editable decomposition for pie / doughnut / polar area ─────────
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const c = chartInstance as any;
     const W: number = c.width;
@@ -1046,22 +1221,45 @@ export async function exportToPptx(
       );
     }
 
-    // Use the full canvas as the chart area for pie/doughnut (no cartesian scales)
     const ca = c.chartArea ?? { left: 0, top: 0, right: W, bottom: H };
 
-    // 1. Pie / doughnut slices as native shapes
-    addPieDoughnutDataset(slide, chartInstance, W, H);
+    if (chartType === 'polarArea') {
+      addPolarAreaDatasets(slide, chartInstance, W, H);
+    } else {
+      addPieDoughnutDataset(slide, chartInstance, W, H);
+    }
 
-    // 2. Chart title
     addChartTitle(slide, c, customization, W, H, ca);
 
-    // 3. Legend
     if (customization.showLegend) {
       addLegend(slide, c, customization, W, H);
     }
 
-    // 4. Data labels
     addPieDataLabels(slide, chartInstance, customization, W, H);
+
+  } else if (chartType === 'radar') {
+    // ── Fully-editable decomposition for radar ───────────────────────────────
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const c = chartInstance as any;
+    const W: number = c.width;
+    const H: number = c.height;
+
+    if (!W || !H) {
+      throw new Error(
+        `Chart dimensions not available (W=${W}, H=${H}). ` +
+        'Ensure the chart is visible before exporting.',
+      );
+    }
+
+    const ca = c.chartArea ?? { left: 0, top: 0, right: W, bottom: H };
+
+    addRadarDatasets(slide, chartInstance, customization, W, H);
+    addChartTitle(slide, c, customization, W, H, ca);
+
+    if (customization.showLegend) {
+      addLegend(slide, c, customization, W, H);
+    }
+
   } else {
     // ── Fully-editable decomposition for cartesian chart types ───────────────
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1104,13 +1302,23 @@ export async function exportToPptx(
 
       switch (chartType) {
         case 'bar':
-          addBarDataset(
-            slide,
-            meta.data,
-            W, H,
-            fillHex, borderHex, borderPt,
-            customization.barConfig.borderRadius,
-          );
+          if (customization.barConfig.horizontal) {
+            addHorizontalBarDataset(
+              slide,
+              meta.data,
+              W, H,
+              fillHex, borderHex, borderPt,
+              customization.barConfig.borderRadius,
+            );
+          } else {
+            addBarDataset(
+              slide,
+              meta.data,
+              W, H,
+              fillHex, borderHex, borderPt,
+              customization.barConfig.borderRadius,
+            );
+          }
           break;
 
         case 'line':

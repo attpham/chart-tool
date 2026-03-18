@@ -79,11 +79,9 @@ export function useChartData() {
     }));
   }, []);
 
-  const loadChartData = useCallback((data: ChartData) => {
+  const importData = useCallback((data: ChartData) => {
     setChartData(data);
   }, []);
-
-  const importData = loadChartData;
 
   return {
     chartData,
@@ -95,6 +93,5 @@ export function useChartData() {
     addColumn,
     removeColumn,
     importData,
-    loadChartData,
   };
 }

@@ -11,7 +11,8 @@ import { NewChartDialog } from './components/NewChartDialog';
 import { useChartData } from './hooks/useChartData';
 import { useChartOptions } from './hooks/useChartOptions';
 import { useChartStorage } from './hooks/useChartStorage';
-import { AppState, ChartType, ChartData, SavedChart } from './types/chart';
+import { ChartType } from './types/chart';
+import type { AppState, ChartData, SavedChart } from './types/chart';
 import { PaletteId } from './data/palettes';
 import { exportToPptx } from './utils/exportToPptx';
 import { DEFAULT_CHART_DATA, DEFAULT_CUSTOMIZATION } from './utils/chartDefaults';
@@ -28,7 +29,6 @@ export default function App() {
 
   const {
     chartData,
-    loadChartData,
     updateLabel,
     updateCell,
     updateDatasetLabel,
@@ -68,10 +68,10 @@ export default function App() {
     if (saved) {
       setChartType(saved.chartType);
       setIsDarkMode(saved.isDarkMode);
-      loadChartData(saved.chartData);
+      importData(saved.chartData);
       loadCustomization(saved.customization);
     }
-  }, [loadAutoSave, loadChartData, loadCustomization]);
+  }, [loadAutoSave, importData, loadCustomization]);
 
   // Keep a ref to the latest state to avoid stale closures in save/export callbacks
   const currentState: AppState = { chartType, chartData, customization, isDarkMode };
@@ -119,10 +119,10 @@ export default function App() {
   const handleLoadChart = useCallback((chart: SavedChart) => {
     setChartType(chart.state.chartType);
     setIsDarkMode(chart.state.isDarkMode);
-    loadChartData(chart.state.chartData);
+    importData(chart.state.chartData);
     loadCustomization(chart.state.customization);
     setShowMyCharts(false);
-  }, [loadChartData, loadCustomization]);
+  }, [importData, loadCustomization]);
 
   const handleExportConfig = useCallback(() => {
     exportConfig(currentStateRef.current);
@@ -134,20 +134,20 @@ export default function App() {
       const state = await importConfig();
       setChartType(state.chartType);
       setIsDarkMode(state.isDarkMode);
-      loadChartData(state.chartData);
+      importData(state.chartData);
       loadCustomization(state.customization);
     } catch (err) {
       setImportError(err instanceof Error ? err.message : 'Failed to import config');
       setTimeout(() => setImportError(null), 4000);
     }
-  }, [importConfig, loadChartData, loadCustomization]);
+  }, [importConfig, importData, loadCustomization]);
 
   const resetToNewChart = useCallback(() => {
     setChartType('bar');
-    loadChartData(DEFAULT_CHART_DATA);
+    importData(DEFAULT_CHART_DATA);
     loadCustomization(DEFAULT_CUSTOMIZATION);
     clearAutoSave();
-  }, [loadChartData, loadCustomization, clearAutoSave]);
+  }, [importData, loadCustomization, clearAutoSave]);
 
   const handleNewChart = useCallback(() => {
     resetToNewChart();

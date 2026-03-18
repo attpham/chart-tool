@@ -9,7 +9,7 @@ import { SavedChartsModal } from './components/SavedChartsModal';
 import { SaveChartDialog } from './components/SaveChartDialog';
 import { NewChartDialog } from './components/NewChartDialog';
 import { useChartStorage } from './hooks/useChartStorage';
-import type { AppState, SavedChart } from './types/chart';
+import type { AppState, ChartData, SavedChart } from './types/chart';
 import { useChartData } from './hooks/useChartData';
 import { useChartOptions } from './hooks/useChartOptions';
 import { ChartType } from './types/chart';
@@ -88,7 +88,7 @@ export default function App() {
     syncDatasetConfigs(chartData.datasets.length, chartData.datasets.map(d => d.label));
   }, [chartData.datasets.length, syncDatasetConfigs]);
 
-  const handleImportData = useCallback((data: Parameters<typeof importData>[0]) => {
+  const handleImportData = useCallback((data: ChartData) => {
     importData(data);
     // Sync dataset configs immediately for new dataset labels/counts
     syncDatasetConfigs(data.datasets.length, data.datasets.map(d => d.label));

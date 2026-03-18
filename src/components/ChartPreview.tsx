@@ -3,6 +3,7 @@ import {
   Chart as ChartJS,
   CategoryScale,
   LinearScale,
+  RadialLinearScale,
   BarElement,
   LineElement,
   PointElement,
@@ -16,7 +17,7 @@ import {
   ChartData as ChartJSData,
 } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
-import { Bar, Line, Pie, Doughnut, Scatter } from 'react-chartjs-2';
+import { Bar, Line, Pie, Doughnut, Scatter, Radar, PolarArea } from 'react-chartjs-2';
 import { ChartType, ChartData, ChartCustomization } from '../types/chart';
 import { SEMANTIC_COLORS } from '../data/palettes';
 import { formatNumber } from '../utils/numberFormat';
@@ -24,6 +25,7 @@ import { formatNumber } from '../utils/numberFormat';
 ChartJS.register(
   CategoryScale,
   LinearScale,
+  RadialLinearScale,
   BarElement,
   LineElement,
   PointElement,
@@ -82,7 +84,7 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
   }, [customization.datasetConfigs]);
 
   const getChartJSData = useCallback((): ChartJSData => {
-    if (chartType === 'pie' || chartType === 'doughnut') {
+    if (chartType === 'pie' || chartType === 'doughnut' || chartType === 'polarArea') {
       return {
         labels: chartData.labels,
         datasets: chartData.datasets.map((ds, di) => {
@@ -149,6 +151,15 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
           };
         }
 
+        if (chartType === 'radar') {
+          return {
+            ...baseDataset,
+            tension: customization.radarConfig.tension,
+            pointRadius: customization.radarConfig.pointRadius,
+            fill: customization.radarConfig.fill,
+          };
+        }
+
         if (chartType === 'bar') {
           return {
             ...baseDataset,
@@ -183,7 +194,9 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
       : (dark ? '#d1d5db' : c.axisLabelFont.color);
 
     const isPieOrDoughnut = chartType === 'pie' || chartType === 'doughnut';
-    const totalPieValue = isPieOrDoughnut
+    const isRadial = chartType === 'radar' || chartType === 'polarArea';
+    const isProportionChart = isPieOrDoughnut || chartType === 'polarArea';
+    const totalPieValue = isProportionChart
       ? chartData.datasets.reduce((sum, ds) => sum + ds.data.reduce((s: number, v) => s + (v ?? 0), 0), 0)
       : 0;
 
@@ -199,7 +212,7 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
           formatter: (value: number, ctx: { chart: { data: { datasets: { data: (number | null)[] }[] } }; dataIndex: number }) => {
             const num = typeof value === 'number' ? value : (value as { y?: number })?.y ?? 0;
             const formatted = formatNumber(num, c.numberFormat);
-            if (isPieOrDoughnut && c.dataLabelFormat !== 'value') {
+            if (isProportionChart && c.dataLabelFormat !== 'value') {
               const pct = totalPieValue > 0 ? ((num / totalPieValue) * 100).toFixed(c.numberFormat.decimalPlaces) : '0';
               if (c.dataLabelFormat === 'percentage') return `${pct}%`;
               if (c.dataLabelFormat === 'valueAndPercentage') return `${formatted}\n${pct}%`;
@@ -213,7 +226,7 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
           // so always use the configured font color (avoids invisible white-on-white text).
           color: (ctx: { dataset: { backgroundColor: string | string[] }; dataIndex: number }) => {
             const labelIsInside = c.dataLabelPosition === 'center' || c.dataLabelPosition === 'start';
-            if (labelIsInside && (isPieOrDoughnut || chartType === 'bar')) {
+            if (labelIsInside && (isProportionChart || chartType === 'bar')) {
               const bg = ctx.dataset.backgroundColor;
               const color = Array.isArray(bg) ? bg[ctx.dataIndex] : bg;
               if (typeof color === 'string' && color.startsWith('#')) {
@@ -278,12 +291,53 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
       },
     };
 
-    if (isPieOrDoughnut) {
+    if (isPieOrDoughnut || chartType === 'polarArea') {
       return baseOptions;
     }
 
+    if (isRadial) {
+      // Radar chart uses a radial/angular scale
+      return {
+        ...baseOptions,
+        scales: {
+          r: {
+            grid: {
+              display: c.showGridlines,
+              color: gridColor,
+            },
+            ticks: {
+              color: tickColor,
+              font: {
+                family: c.tickLabelFont.family,
+                size: c.tickLabelFont.size,
+                weight: c.tickLabelFont.weight as 'bold' | 'normal',
+              },
+              callback: (value: number | string) => {
+                const num = typeof value === 'number' ? value : parseFloat(String(value));
+                if (isNaN(num)) return String(value);
+                return formatNumber(num, c.numberFormat);
+              },
+            },
+            pointLabels: {
+              color: tickColor,
+              font: {
+                family: c.tickLabelFont.family,
+                size: c.tickLabelFont.size,
+                weight: c.tickLabelFont.weight as 'bold' | 'normal',
+              },
+            },
+          },
+        },
+      } as ChartOptions;
+    }
+
+    const isHorizontal = chartType === 'bar' && c.barConfig.horizontal;
+    const xLabel = isHorizontal ? c.yAxisLabel : c.xAxisLabel;
+    const yLabel = isHorizontal ? c.xAxisLabel : c.yAxisLabel;
+
     return {
       ...baseOptions,
+      ...(isHorizontal ? { indexAxis: 'y' as const } : {}),
       scales: {
         x: {
           stacked: chartType === 'bar' && !c.barConfig.grouped,
@@ -298,10 +352,17 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
               size: c.tickLabelFont.size,
               weight: c.tickLabelFont.weight as 'bold' | 'normal',
             },
+            ...(isHorizontal ? {
+              callback: (value: number | string) => {
+                const num = typeof value === 'number' ? value : parseFloat(String(value));
+                if (isNaN(num)) return String(value);
+                return formatNumber(num, c.numberFormat);
+              },
+            } : {}),
           },
           title: {
-            display: c.showAxisLabels && !!c.xAxisLabel,
-            text: c.xAxisLabel,
+            display: c.showAxisLabels && !!xLabel,
+            text: xLabel,
             color: axisColor,
             font: {
               family: c.axisLabelFont.family,
@@ -323,15 +384,17 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
               size: c.tickLabelFont.size,
               weight: c.tickLabelFont.weight as 'bold' | 'normal',
             },
-            callback: (value: number | string) => {
-              const num = typeof value === 'number' ? value : parseFloat(String(value));
-              if (isNaN(num)) return String(value);
-              return formatNumber(num, c.numberFormat);
-            },
+            ...(!isHorizontal ? {
+              callback: (value: number | string) => {
+                const num = typeof value === 'number' ? value : parseFloat(String(value));
+                if (isNaN(num)) return String(value);
+                return formatNumber(num, c.numberFormat);
+              },
+            } : {}),
           },
           title: {
-            display: c.showAxisLabels && !!c.yAxisLabel,
-            text: c.yAxisLabel,
+            display: c.showAxisLabels && !!yLabel,
+            text: yLabel,
             color: axisColor,
             font: {
               family: c.axisLabelFont.family,
@@ -398,6 +461,10 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
         return <Doughnut {...(chartProps as Parameters<typeof Doughnut>[0])} />;
       case 'scatter':
         return <Scatter {...(chartProps as Parameters<typeof Scatter>[0])} />;
+      case 'radar':
+        return <Radar {...(chartProps as Parameters<typeof Radar>[0])} />;
+      case 'polarArea':
+        return <PolarArea {...(chartProps as Parameters<typeof PolarArea>[0])} />;
       default:
         return <Bar {...(chartProps as Parameters<typeof Bar>[0])} />;
     }

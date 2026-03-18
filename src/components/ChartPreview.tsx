@@ -372,15 +372,13 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
               size: c.tickLabelFont.size,
               weight: c.tickLabelFont.weight as 'bold' | 'normal',
             },
-            ...(!isHorizontalBar ? {
-              callback: undefined,
-            } : {
+            ...(isHorizontalBar ? {
               callback: (value: number | string) => {
                 const num = typeof value === 'number' ? value : parseFloat(String(value));
                 if (isNaN(num)) return String(value);
                 return formatNumber(num, c.numberFormat);
               },
-            }),
+            } : {}),
           },
           title: {
             display: c.showAxisLabels && !!xAxisLabel,
@@ -406,15 +404,13 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
               size: c.tickLabelFont.size,
               weight: c.tickLabelFont.weight as 'bold' | 'normal',
             },
-            ...(isHorizontalBar ? {
-              callback: undefined,
-            } : {
+            ...(!isHorizontalBar ? {
               callback: (value: number | string) => {
                 const num = typeof value === 'number' ? value : parseFloat(String(value));
                 if (isNaN(num)) return String(value);
                 return formatNumber(num, c.numberFormat);
               },
-            }),
+            } : {}),
           },
           title: {
             display: c.showAxisLabels && !!yAxisLabel,

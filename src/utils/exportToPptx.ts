@@ -2,6 +2,7 @@ import pptxgen from 'pptxgenjs';
 import { Chart as ChartJS } from 'chart.js';
 import { ChartCustomization, ChartType } from '../types/chart';
 import { formatNumber } from './numberFormat';
+import { isProportionChart } from './chartHelpers';
 
 // PptxGenJS ShapeType enum values are plain strings at runtime.
 // Define them explicitly to avoid CJS/ESM interop issues with Vite.
@@ -520,10 +521,10 @@ function formatDataLabel(
   value: number,
   customization: ChartCustomization,
   total: number,
-  isPieOrDoughnut: boolean,
+  isProportion: boolean,
 ): string {
   const formatted = formatNumber(value, customization.numberFormat);
-  if (isPieOrDoughnut && customization.dataLabelFormat !== 'value') {
+  if (isProportion && customization.dataLabelFormat !== 'value') {
     const pct = total > 0
       ? ((value / total) * 100).toFixed(customization.numberFormat.decimalPlaces)
       : '0';
@@ -1032,7 +1033,7 @@ export async function exportToPptx(
   const slide = pptx.addSlide();
   const title = customization.title || 'Chart';
 
-  if (chartType === 'pie' || chartType === 'doughnut') {
+  if (isProportionChart(chartType)) {
     // ── Fully-editable decomposition for pie / doughnut ──────────────────────
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const c = chartInstance as any;

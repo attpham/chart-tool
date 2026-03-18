@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { ChartCustomization, DatasetConfig } from '../types/chart';
-import { DEFAULT_CUSTOMIZATION, createDefaultDatasetConfig } from '../utils/chartDefaults';
+import { DEFAULT_COLORS, DEFAULT_CUSTOMIZATION, createDefaultDatasetConfig } from '../utils/chartDefaults';
 import { PaletteId, PALETTE_MAP, SEMANTIC_COLORS } from '../data/palettes';
 
 export function useChartOptions() {
@@ -45,6 +45,19 @@ export function useChartOptions() {
     });
   }, []);
 
+  const syncSliceColors = useCallback((labelCount: number) => {
+    setCustomization(prev => {
+      const palette = prev.selectedPalette ? PALETTE_MAP[prev.selectedPalette] : null;
+      const colors = palette ? palette.colors : DEFAULT_COLORS;
+      const existing = prev.sliceColors;
+      const newColors: string[] = [];
+      for (let i = 0; i < labelCount; i++) {
+        newColors.push(existing[i] ?? colors[i % colors.length]);
+      }
+      return { ...prev, sliceColors: newColors };
+    });
+  }, []);
+
   const applyPalette = useCallback((paletteId: PaletteId, isDarkMode: boolean) => {
     const palette = PALETTE_MAP[paletteId];
     if (!palette) return;
@@ -59,10 +72,15 @@ export function useChartOptions() {
         borderColor: palette.colors[i % palette.colors.length],
       }));
 
+      const newSliceColors = prev.sliceColors.map((_, i) =>
+        palette.colors[i % palette.colors.length]
+      );
+
       return {
         ...prev,
         selectedPalette: paletteId,
         datasetConfigs: newConfigs,
+        sliceColors: newSliceColors,
         titleFont: { ...prev.titleFont, color: textColor },
         axisLabelFont: { ...prev.axisLabelFont, color: textColor },
         tickLabelFont: { ...prev.tickLabelFont, color: gridColor },
@@ -76,6 +94,7 @@ export function useChartOptions() {
     updateCustomization,
     updateDatasetConfig,
     syncDatasetConfigs,
+    syncSliceColors,
     applyPalette,
   };
 }

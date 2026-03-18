@@ -1,9 +1,11 @@
 import React, { useRef, useCallback, useState } from 'react';
-import { ChartData } from '../types/chart';
+import { ChartData, ChartType } from '../types/chart';
 import { parseTabularText, parseTabularFile } from '../utils/parseTabularData';
+import { isProportionChart } from '../utils/chartHelpers';
 
 interface DataTableProps {
   chartData: ChartData;
+  chartType: ChartType;
   onUpdateLabel: (index: number, value: string) => void;
   onUpdateCell: (datasetIndex: number, labelIndex: number, value: string) => void;
   onUpdateDatasetLabel: (datasetIndex: number, label: string) => void;
@@ -16,6 +18,7 @@ interface DataTableProps {
 
 export const DataTable: React.FC<DataTableProps> = ({
   chartData,
+  chartType,
   onUpdateLabel,
   onUpdateCell,
   onUpdateDatasetLabel,
@@ -25,6 +28,7 @@ export const DataTable: React.FC<DataTableProps> = ({
   onRemoveColumn,
   onImportData,
 }) => {
+  const isProportion = isProportionChart(chartType);
   const tableRef = useRef<HTMLTableElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showPasteModal, setShowPasteModal] = useState(false);
@@ -129,13 +133,15 @@ export const DataTable: React.FC<DataTableProps> = ({
           Data Table
         </h2>
         <div className="flex gap-1">
-          <button
-            onClick={onAddColumn}
-            className="px-2 py-1 text-xs bg-accent hover:bg-accent-5 text-white rounded transition-colors"
-            title="Add dataset column"
-          >
-            + Col
-          </button>
+          {!isProportion && (
+            <button
+              onClick={onAddColumn}
+              className="px-2 py-1 text-xs bg-accent hover:bg-accent-5 text-white rounded transition-colors"
+              title="Add dataset column"
+            >
+              + Col
+            </button>
+          )}
           <button
             onClick={onAddRow}
             className="px-2 py-1 text-xs bg-accent hover:bg-accent-5 text-white rounded transition-colors"
@@ -179,16 +185,17 @@ export const DataTable: React.FC<DataTableProps> = ({
               <th className="text-left pb-1 pr-1">
                 <span className="text-gray-500 dark:text-gray-400 font-medium text-xs">Label</span>
               </th>
-              {chartData.datasets.map((ds, di) => (
+              {(isProportion ? chartData.datasets.slice(0, 1) : chartData.datasets).map((ds, di) => (
                 <th key={di} className="pb-1 px-1">
                   <div className="flex items-center gap-0.5">
                     <input
-                      value={ds.label}
-                      onChange={e => onUpdateDatasetLabel(di, e.target.value)}
+                      value={isProportion ? 'Values' : ds.label}
+                      onChange={e => !isProportion && onUpdateDatasetLabel(di, e.target.value)}
+                      readOnly={isProportion}
                       className="w-full min-w-0 border border-gray-300 dark:border-gray-600 rounded px-1.5 py-0.5 text-xs bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium text-center"
                       placeholder={`Dataset ${di + 1}`}
                     />
-                    {chartData.datasets.length > 1 && (
+                    {!isProportion && chartData.datasets.length > 1 && (
                       <button
                         onClick={() => onRemoveColumn(di)}
                         className="flex-shrink-0 w-4 h-4 flex items-center justify-center text-red-400 hover:text-red-600 rounded"
@@ -228,7 +235,7 @@ export const DataTable: React.FC<DataTableProps> = ({
                     placeholder="Label"
                   />
                 </td>
-                {chartData.datasets.map((ds, di) => (
+                {(isProportion ? chartData.datasets.slice(0, 1) : chartData.datasets).map((ds, di) => (
                   <td key={di} className="px-1 py-0.5">
                     <input
                       type="number"

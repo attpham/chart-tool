@@ -4,6 +4,7 @@ import { PALETTES } from '../data/palettes';
 import { ColorPicker } from './ColorPicker';
 import { ExportButton } from './ExportButton';
 import { formatNumber } from '../utils/numberFormat';
+import { isProportionChart } from '../utils/chartHelpers';
 
 interface SectionProps {
   title: string;
@@ -133,8 +134,10 @@ const FontSection: React.FC<FontSectionProps> = ({ title, font, onChange, fontKe
 interface CustomizationPanelProps {
   chartType: ChartType;
   customization: ChartCustomization;
+  labels: string[];
   onUpdateCustomization: <K extends keyof ChartCustomization>(key: K, value: ChartCustomization[K]) => void;
   onUpdateDatasetConfig: (index: number, config: Partial<ChartCustomization['datasetConfigs'][0]>) => void;
+  onUpdateSliceColor: (index: number, color: string) => void;
   onApplyPalette: (paletteId: PaletteId) => void;
   onExport: () => Promise<void>;
 }
@@ -142,12 +145,15 @@ interface CustomizationPanelProps {
 export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
   chartType,
   customization,
+  labels,
   onUpdateCustomization,
   onUpdateDatasetConfig,
+  onUpdateSliceColor,
   onApplyPalette,
   onExport,
 }) => {
-  const isCartesian = !['pie', 'doughnut'].includes(chartType);
+  const isProportion = isProportionChart(chartType);
+  const isCartesian = !isProportion;
   const isBar = chartType === 'bar';
   const isLineOrArea = chartType === 'line' || chartType === 'area';
 
@@ -234,29 +240,46 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
 
       {/* Colors */}
       <Section title="Colors">
-        {customization.datasetConfigs.map((cfg, i) => (
-          <div key={i} className="space-y-2">
-            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">{cfg.label}</p>
-            <ColorPicker
-              label="Background"
-              value={typeof cfg.backgroundColor === 'string' ? cfg.backgroundColor : cfg.backgroundColor[0]}
-              onChange={v => onUpdateDatasetConfig(i, { backgroundColor: v })}
-            />
-            <ColorPicker
-              label="Border"
-              value={typeof cfg.borderColor === 'string' ? cfg.borderColor : cfg.borderColor[0]}
-              onChange={v => onUpdateDatasetConfig(i, { borderColor: v })}
-            />
-            <Slider
-              label="Border Width"
-              value={cfg.borderWidth}
-              min={0}
-              max={10}
-              onChange={v => onUpdateDatasetConfig(i, { borderWidth: v })}
-              unit="px"
-            />
-          </div>
-        ))}
+        {isProportion ? (
+          // Per-slice color pickers labeled with row names
+          customization.sliceColors.slice(0, labels.length).map((color, i) => (
+            <div key={i} className="space-y-1">
+              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
+                {labels[i] ?? `Slice ${i + 1}`}
+              </p>
+              <ColorPicker
+                label="Color"
+                value={color}
+                onChange={v => onUpdateSliceColor(i, v)}
+              />
+            </div>
+          ))
+        ) : (
+          // Per-dataset color pickers
+          customization.datasetConfigs.map((cfg, i) => (
+            <div key={i} className="space-y-2">
+              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">{cfg.label}</p>
+              <ColorPicker
+                label="Background"
+                value={typeof cfg.backgroundColor === 'string' ? cfg.backgroundColor : cfg.backgroundColor[0]}
+                onChange={v => onUpdateDatasetConfig(i, { backgroundColor: v })}
+              />
+              <ColorPicker
+                label="Border"
+                value={typeof cfg.borderColor === 'string' ? cfg.borderColor : cfg.borderColor[0]}
+                onChange={v => onUpdateDatasetConfig(i, { borderColor: v })}
+              />
+              <Slider
+                label="Border Width"
+                value={cfg.borderWidth}
+                min={0}
+                max={10}
+                onChange={v => onUpdateDatasetConfig(i, { borderWidth: v })}
+                unit="px"
+              />
+            </div>
+          ))
+        )}
       </Section>
 
       {/* Fonts */}
@@ -409,7 +432,7 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
                 <option value="auto">Auto</option>
               </select>
             </div>
-            {!['pie', 'doughnut'].includes(chartType) ? null : (
+            {isProportion ? (
               <div>
                 <label className="text-xs text-gray-500 dark:text-gray-400">Format</label>
                 <select
@@ -422,7 +445,7 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
                   <option value="valueAndPercentage">Value + Percentage</option>
                 </select>
               </div>
-            )}
+            ) : null}
             <div>
               <label className="text-xs text-gray-500 dark:text-gray-400">Decimal Places</label>
               <input

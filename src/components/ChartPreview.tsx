@@ -20,6 +20,7 @@ import { Bar, Line, Pie, Doughnut, Scatter } from 'react-chartjs-2';
 import { ChartType, ChartData, ChartCustomization } from '../types/chart';
 import { SEMANTIC_COLORS } from '../data/palettes';
 import { formatNumber } from '../utils/numberFormat';
+import { isProportionChart } from '../utils/chartHelpers';
 
 ChartJS.register(
   CategoryScale,
@@ -75,26 +76,34 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerHeight, setContainerHeight] = useState(0);
   const [containerWidth, setContainerWidth] = useState(0);
-  const getPieColors = useCallback((dataLength: number): string[] => {
-    return customization.datasetConfigs.slice(0, dataLength).map(c =>
-      typeof c.backgroundColor === 'string' ? c.backgroundColor : c.backgroundColor[0]
-    );
-  }, [customization.datasetConfigs]);
 
   const getChartJSData = useCallback((): ChartJSData => {
-    if (chartType === 'pie' || chartType === 'doughnut') {
+    if (isProportionChart(chartType)) {
+      // For proportion charts only render the first dataset.
+      // Colors come from sliceColors — one per label.
+      const ds = chartData.datasets[0];
+      const sliceColors = customization.sliceColors.length >= chartData.labels.length
+        ? customization.sliceColors.slice(0, chartData.labels.length)
+        : [
+            ...customization.sliceColors,
+            ...Array.from(
+              { length: chartData.labels.length - customization.sliceColors.length },
+              (_, i) => customization.sliceColors[(customization.sliceColors.length + i) % Math.max(customization.sliceColors.length, 1)] ?? '#0FBF3E'
+            ),
+          ];
+      const borderColors = sliceColors.map(c => c + 'cc');
+      const cfg = customization.datasetConfigs[0];
       return {
         labels: chartData.labels,
-        datasets: chartData.datasets.map((ds, di) => {
-          const cfg = customization.datasetConfigs[di] || customization.datasetConfigs[0];
-          return {
-            label: ds.label,
-            data: ds.data.map(d => d ?? 0),
-            backgroundColor: getPieColors(chartData.labels.length),
-            borderColor: getPieColors(chartData.labels.length).map(c => c + 'cc'),
+        datasets: [
+          {
+            label: ds?.label ?? 'Values',
+            data: (ds?.data ?? []).map(d => d ?? 0),
+            backgroundColor: sliceColors,
+            borderColor: borderColors,
             borderWidth: cfg?.borderWidth ?? 2,
-          };
-        }),
+          },
+        ],
       };
     }
 
@@ -160,7 +169,7 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
         return baseDataset;
       }),
     };
-  }, [chartType, chartData, customization, getPieColors]);
+  }, [chartType, chartData, customization]);
 
   const getChartOptions = useCallback((): ChartOptions => {
     const c = customization;
@@ -182,9 +191,9 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
       ? (dark ? SEMANTIC_COLORS.white : SEMANTIC_COLORS.black)
       : (dark ? '#d1d5db' : c.axisLabelFont.color);
 
-    const isPieOrDoughnut = chartType === 'pie' || chartType === 'doughnut';
-    const totalPieValue = isPieOrDoughnut
-      ? chartData.datasets.reduce((sum, ds) => sum + ds.data.reduce((s: number, v) => s + (v ?? 0), 0), 0)
+    const isProportion = isProportionChart(chartType);
+    const totalPieValue = isProportion
+      ? chartData.datasets.slice(0, 1).reduce((sum, ds) => sum + ds.data.reduce((s: number, v) => s + (v ?? 0), 0), 0)
       : 0;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -199,7 +208,7 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
           formatter: (value: number, ctx: { chart: { data: { datasets: { data: (number | null)[] }[] } }; dataIndex: number }) => {
             const num = typeof value === 'number' ? value : (value as { y?: number })?.y ?? 0;
             const formatted = formatNumber(num, c.numberFormat);
-            if (isPieOrDoughnut && c.dataLabelFormat !== 'value') {
+            if (isProportion && c.dataLabelFormat !== 'value') {
               const pct = totalPieValue > 0 ? ((num / totalPieValue) * 100).toFixed(c.numberFormat.decimalPlaces) : '0';
               if (c.dataLabelFormat === 'percentage') return `${pct}%`;
               if (c.dataLabelFormat === 'valueAndPercentage') return `${formatted}\n${pct}%`;
@@ -213,7 +222,7 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
           // so always use the configured font color (avoids invisible white-on-white text).
           color: (ctx: { dataset: { backgroundColor: string | string[] }; dataIndex: number }) => {
             const labelIsInside = c.dataLabelPosition === 'center' || c.dataLabelPosition === 'start';
-            if (labelIsInside && (isPieOrDoughnut || chartType === 'bar')) {
+            if (labelIsInside && (isProportion || chartType === 'bar')) {
               const bg = ctx.dataset.backgroundColor;
               const color = Array.isArray(bg) ? bg[ctx.dataIndex] : bg;
               if (typeof color === 'string' && color.startsWith('#')) {
@@ -278,7 +287,7 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
       },
     };
 
-    if (isPieOrDoughnut) {
+    if (isProportion) {
       return baseOptions;
     }
 

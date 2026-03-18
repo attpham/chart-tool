@@ -1,4 +1,4 @@
-export type ChartType = 'bar' | 'line' | 'pie' | 'doughnut' | 'scatter' | 'area';
+export type ChartType = 'bar' | 'line' | 'pie' | 'doughnut' | 'scatter' | 'area' | 'polarArea';
 
 import type { PaletteId } from '../data/palettes';
 export type { PaletteId };
@@ -75,6 +75,7 @@ export interface ChartCustomization {
   barConfig: BarConfig;
   lineConfig: LineConfig;
   datasetConfigs: DatasetConfig[];
+  sliceColors: string[];
   selectedPalette?: PaletteId;
   showDataLabels: boolean;
   dataLabelFont: FontConfig;

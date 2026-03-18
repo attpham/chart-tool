@@ -33,12 +33,17 @@ export default function App() {
     updateCustomization,
     updateDatasetConfig,
     syncDatasetConfigs,
+    syncSliceColors,
     applyPalette,
   } = useChartOptions();
 
   useEffect(() => {
     syncDatasetConfigs(chartData.datasets.length, chartData.datasets.map(d => d.label));
   }, [chartData.datasets.length, syncDatasetConfigs]);
+
+  useEffect(() => {
+    syncSliceColors(chartData.labels.length);
+  }, [chartData.labels.length, syncSliceColors]);
 
   const handleImportData = useCallback((data: ChartData) => {
     importData(data);
@@ -62,6 +67,12 @@ export default function App() {
   const handleApplyPalette = useCallback((paletteId: PaletteId) => {
     applyPalette(paletteId, isDarkMode);
   }, [applyPalette, isDarkMode]);
+
+  const handleUpdateSliceColor = useCallback((index: number, color: string) => {
+    const newSliceColors = [...customization.sliceColors];
+    newSliceColors[index] = color;
+    updateCustomization('sliceColors', newSliceColors);
+  }, [customization.sliceColors, updateCustomization]);
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 transition-colors">
@@ -88,6 +99,7 @@ export default function App() {
           <ChartTypeSelector selectedType={chartType} onChange={setChartType} />
           <DataTable
             chartData={chartData}
+            chartType={chartType}
             onUpdateLabel={updateLabel}
             onUpdateCell={updateCell}
             onUpdateDatasetLabel={updateDatasetLabel}
@@ -120,8 +132,10 @@ export default function App() {
           <CustomizationPanel
             chartType={chartType}
             customization={customization}
+            labels={chartData.labels}
             onUpdateCustomization={updateCustomization}
             onUpdateDatasetConfig={updateDatasetConfig}
+            onUpdateSliceColor={handleUpdateSliceColor}
             onApplyPalette={handleApplyPalette}
             onExport={handleExport}
           />

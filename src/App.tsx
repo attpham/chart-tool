@@ -7,18 +7,21 @@ import { CustomizationPanel } from './components/CustomizationPanel';
 import { ThemeToggle } from './components/ThemeToggle';
 import { SavedChartsModal } from './components/SavedChartsModal';
 import { SaveChartDialog } from './components/SaveChartDialog';
+import { NewChartDialog } from './components/NewChartDialog';
 import { useChartData } from './hooks/useChartData';
 import { useChartOptions } from './hooks/useChartOptions';
 import { useChartStorage } from './hooks/useChartStorage';
 import { AppState, ChartType, SavedChart } from './types/chart';
 import { PaletteId } from './data/palettes';
 import { exportToPptx } from './utils/exportToPptx';
+import { DEFAULT_CHART_DATA, DEFAULT_CUSTOMIZATION } from './utils/chartDefaults';
 
 export default function App() {
   const [chartType, setChartType] = useState<ChartType>('bar');
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [showMyCharts, setShowMyCharts] = useState(false);
+  const [showNewChartDialog, setShowNewChartDialog] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const chartRef = useRef<ChartJS>(null);
   const hasRestoredRef = useRef(false);
@@ -48,6 +51,7 @@ export default function App() {
     savedCharts,
     autoSave,
     loadAutoSave,
+    clearAutoSave,
     saveChart,
     deleteChart,
     renameChart,
@@ -131,6 +135,24 @@ export default function App() {
     }
   }, [importConfig, loadChartData, loadCustomization]);
 
+  const resetToNewChart = useCallback(() => {
+    setChartType('bar');
+    loadChartData(DEFAULT_CHART_DATA);
+    loadCustomization(DEFAULT_CUSTOMIZATION);
+    clearAutoSave();
+  }, [loadChartData, loadCustomization, clearAutoSave]);
+
+  const handleNewChart = useCallback(() => {
+    resetToNewChart();
+    setShowNewChartDialog(false);
+  }, [resetToNewChart]);
+
+  const handleSaveAndNew = useCallback(() => {
+    saveChart(currentStateRef.current.customization.title || 'My Chart', currentStateRef.current);
+    resetToNewChart();
+    setShowNewChartDialog(false);
+  }, [saveChart, resetToNewChart]);
+
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 transition-colors">
       {/* Header */}
@@ -153,6 +175,16 @@ export default function App() {
           {importError && (
             <span className="text-xs text-red-500 dark:text-red-400 mr-2">{importError}</span>
           )}
+          <button
+            onClick={() => setShowNewChartDialog(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            title="Start a new chart"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            New
+          </button>
           <button
             onClick={() => setShowSaveDialog(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-accent hover:bg-accent-5 text-white rounded-lg transition-colors"
@@ -247,6 +279,15 @@ export default function App() {
           />
         </div>
       </div>
+
+      {/* New Chart Dialog */}
+      {showNewChartDialog && (
+        <NewChartDialog
+          onNewChart={handleNewChart}
+          onSaveAndNew={handleSaveAndNew}
+          onClose={() => setShowNewChartDialog(false)}
+        />
+      )}
 
       {/* Save Chart Dialog */}
       {showSaveDialog && (

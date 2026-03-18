@@ -143,10 +143,23 @@ export function useChartStorage() {
     });
   }, []);
 
+  const clearAutoSave = useCallback(() => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
+    try {
+      localStorage.removeItem(AUTOSAVE_KEY);
+    } catch (e) {
+      console.warn('Clear auto-save failed:', e);
+    }
+  }, []);
+
   return {
     savedCharts,
     autoSave,
     loadAutoSave,
+    clearAutoSave,
     saveChart,
     deleteChart,
     renameChart,

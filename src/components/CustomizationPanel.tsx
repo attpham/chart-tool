@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChartCustomization, ChartType, FontFamily, PointStyle, LegendPosition, PaletteId, DataLabelFormat, DataLabelPosition, NumberFormatType, RadarConfig } from '../types/chart';
+import { ChartCustomization, ChartType, FontFamily, PointStyle, LegendPosition, PaletteId, DataLabelFormat, DataLabelPosition, NumberFormatType, RadarConfig, ComboConfig } from '../types/chart';
 import { PALETTES } from '../data/palettes';
 import { ColorPicker } from './ColorPicker';
 import { ExportButton } from './ExportButton';
@@ -153,6 +153,7 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
 }) => {
   const isCartesian = !['pie', 'doughnut', 'radar', 'polarArea'].includes(chartType);
   const isBar = chartType === 'bar';
+  const isCombo = chartType === 'combo';
   const isLineOrArea = chartType === 'line' || chartType === 'area';
   const isRadar = chartType === 'radar';
   const isProportion = isProportionChart(chartType);
@@ -352,7 +353,7 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
       )}
 
       {/* Bar Chart Options */}
-      {isBar && (
+      {(isBar || isCombo) && (
         <Section title="Bar Options" defaultOpen={false}>
           <Slider
             label="Border Radius"
@@ -367,10 +368,52 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
             checked={customization.barConfig.grouped}
             onChange={v => onUpdateCustomization('barConfig', { ...customization.barConfig, grouped: v })}
           />
+          {isBar && (
+            <Toggle
+              label="Horizontal"
+              checked={customization.barConfig.horizontal}
+              onChange={v => onUpdateCustomization('barConfig', { ...customization.barConfig, horizontal: v })}
+            />
+          )}
+        </Section>
+      )}
+
+      {/* Combo Options */}
+      {isCombo && (
+        <Section title="Combo Options" defaultOpen={false}>
+          <div>
+            <label className="text-xs text-gray-500 dark:text-gray-400">Line Dataset</label>
+            <select
+              value={customization.comboConfig.lineDatasetIndex}
+              onChange={e => onUpdateCustomization('comboConfig', { ...customization.comboConfig, lineDatasetIndex: Number(e.target.value) } as ComboConfig)}
+              className="w-full mt-1 text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+            >
+              <option value={-1}>Last Dataset</option>
+              {customization.datasetConfigs.map((cfg, i) => (
+                <option key={i} value={i}>{cfg.label}</option>
+              ))}
+            </select>
+          </div>
+          <Slider
+            label="Line Tension"
+            value={customization.comboConfig.lineTension}
+            min={0}
+            max={1}
+            step={0.05}
+            onChange={v => onUpdateCustomization('comboConfig', { ...customization.comboConfig, lineTension: v } as ComboConfig)}
+          />
+          <Slider
+            label="Point Radius"
+            value={customization.comboConfig.linePointRadius}
+            min={0}
+            max={20}
+            onChange={v => onUpdateCustomization('comboConfig', { ...customization.comboConfig, linePointRadius: v } as ComboConfig)}
+            unit="px"
+          />
           <Toggle
-            label="Horizontal"
-            checked={customization.barConfig.horizontal}
-            onChange={v => onUpdateCustomization('barConfig', { ...customization.barConfig, horizontal: v })}
+            label="Fill Under Line"
+            checked={customization.comboConfig.lineFill}
+            onChange={v => onUpdateCustomization('comboConfig', { ...customization.comboConfig, lineFill: v } as ComboConfig)}
           />
         </Section>
       )}

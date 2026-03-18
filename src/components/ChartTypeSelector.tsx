@@ -15,6 +15,7 @@ const CHART_TYPES: { type: ChartType; label: string; icon: string }[] = [
   { type: 'area', label: 'Area', icon: '🏔' },
   { type: 'radar', label: 'Radar', icon: '🕸' },
   { type: 'polarArea', label: 'Polar Area', icon: '🎯' },
+  { type: 'combo', label: 'Combo', icon: '🔀' },
 ];
 
 export const ChartTypeSelector: React.FC<ChartTypeSelectorProps> = ({ selectedType, onChange }) => {

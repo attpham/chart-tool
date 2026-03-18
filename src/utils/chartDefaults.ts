@@ -1,4 +1,4 @@
-import { ChartCustomization, ChartData, DatasetConfig, NumberFormatConfig, RadarConfig } from '../types/chart';
+import { ChartCustomization, ChartData, DatasetConfig, NumberFormatConfig, RadarConfig, ComboConfig } from '../types/chart';
 import { SEMANTIC_COLORS } from '../data/palettes';
 
 // Refactor palette colors: Green 4 primary, Green 2 secondary, then remaining greens
@@ -84,6 +84,12 @@ export const DEFAULT_CUSTOMIZATION: ChartCustomization = {
     tension: 0.0,
     pointRadius: 4,
   } as RadarConfig,
+  comboConfig: {
+    lineDatasetIndex: -1,
+    lineTension: 0.3,
+    linePointRadius: 4,
+    lineFill: false,
+  } as ComboConfig,
   datasetConfigs: [
     createDefaultDatasetConfig(0, 'Dataset 1'),
     createDefaultDatasetConfig(1, 'Dataset 2'),

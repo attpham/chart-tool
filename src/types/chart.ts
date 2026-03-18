@@ -1,4 +1,4 @@
-export type ChartType = 'bar' | 'line' | 'pie' | 'doughnut' | 'scatter' | 'area' | 'radar' | 'polarArea';
+export type ChartType = 'bar' | 'line' | 'pie' | 'doughnut' | 'scatter' | 'area' | 'radar' | 'polarArea' | 'combo';
 
 import type { PaletteId } from '../data/palettes';
 export type { PaletteId };
@@ -54,6 +54,17 @@ export interface RadarConfig {
   pointRadius: number;
 }
 
+export interface ComboConfig {
+  /** Index of the dataset to render as a line (0-based). -1 means last dataset. */
+  lineDatasetIndex: number;
+  /** Line tension for the combo line */
+  lineTension: number;
+  /** Point radius for combo line points */
+  linePointRadius: number;
+  /** Whether to fill the area under the combo line */
+  lineFill: boolean;
+}
+
 export interface LineConfig {
   tension: number;
   pointStyle: PointStyle;
@@ -82,6 +93,7 @@ export interface ChartCustomization {
   barConfig: BarConfig;
   lineConfig: LineConfig;
   radarConfig: RadarConfig;
+  comboConfig: ComboConfig;
   datasetConfigs: DatasetConfig[];
   sliceColors: string[];
   selectedPalette?: PaletteId;

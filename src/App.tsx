@@ -8,11 +8,11 @@ import { ThemeToggle } from './components/ThemeToggle';
 import { SavedChartsModal } from './components/SavedChartsModal';
 import { SaveChartDialog } from './components/SaveChartDialog';
 import { NewChartDialog } from './components/NewChartDialog';
+import { useChartStorage } from './hooks/useChartStorage';
+import type { AppState, SavedChart } from './types/chart';
 import { useChartData } from './hooks/useChartData';
 import { useChartOptions } from './hooks/useChartOptions';
-import { useChartStorage } from './hooks/useChartStorage';
-import { ChartType, ChartData } from './types/chart';
-import type { AppState, SavedChart } from './types/chart';
+import { ChartType } from './types/chart';
 import { PaletteId } from './data/palettes';
 import { exportToPptx } from './utils/exportToPptx';
 import { DEFAULT_CHART_DATA, DEFAULT_CUSTOMIZATION } from './utils/chartDefaults';
@@ -88,7 +88,7 @@ export default function App() {
     syncDatasetConfigs(chartData.datasets.length, chartData.datasets.map(d => d.label));
   }, [chartData.datasets.length, syncDatasetConfigs]);
 
-  const handleImportData = useCallback((data: ChartData) => {
+  const handleImportData = useCallback((data: Parameters<typeof importData>[0]) => {
     importData(data);
     // Sync dataset configs immediately for new dataset labels/counts
     syncDatasetConfigs(data.datasets.length, data.datasets.map(d => d.label));

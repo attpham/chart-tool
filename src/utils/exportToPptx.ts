@@ -605,11 +605,14 @@ function addCartesianDataLabels(
         });
       } else {
         // Line, area, scatter: label above the point
-        const offsetY = dataLabelPosition === 'start'
-          ? offsetAbove + labelH
-          : dataLabelPosition === 'center'
-            ? 0
-            : -offsetAbove;
+        let offsetY: number;
+        if (dataLabelPosition === 'start') {
+          offsetY = offsetAbove + labelH;
+        } else if (dataLabelPosition === 'center') {
+          offsetY = 0;
+        } else {
+          offsetY = -offsetAbove;
+        }
         labelY = px2y(el.y, H) + offsetY - labelH;
         slide.addText(labelText, {
           x: labelX,

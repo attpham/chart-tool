@@ -12,6 +12,18 @@ export type LegendPosition = 'top' | 'bottom' | 'left' | 'right';
 export type DataLabelFormat = 'value' | 'percentage' | 'valueAndPercentage';
 export type DataLabelPosition = 'auto' | 'start' | 'center' | 'end';
 
+export type NumberFormatType = 'raw' | 'currency' | 'percent' | 'abbreviated' | 'custom';
+
+export interface NumberFormatConfig {
+  type: NumberFormatType;
+  currencySymbol: string;
+  currencyPosition: 'prefix' | 'suffix';
+  decimalPlaces: number;
+  thousandsSeparator: boolean;
+  prefix: string;
+  suffix: string;
+}
+
 export interface DatasetConfig {
   label: string;
   backgroundColor: string | string[];
@@ -69,6 +81,7 @@ export interface ChartCustomization {
   dataLabelFormat: DataLabelFormat;
   dataLabelDecimalPlaces: number;
   dataLabelPosition: DataLabelPosition;
+  numberFormat: NumberFormatConfig;
 }
 
 export interface ChartData {

@@ -1,4 +1,4 @@
-import { ChartCustomization, ChartData, DatasetConfig } from '../types/chart';
+import { ChartCustomization, ChartData, DatasetConfig, NumberFormatConfig } from '../types/chart';
 import { SEMANTIC_COLORS } from '../data/palettes';
 
 // Refactor palette colors: Green 4 primary, Green 2 secondary, then remaining greens
@@ -24,6 +24,16 @@ export function createDefaultDatasetConfig(index: number, label: string): Datase
     gradientEndColor: DEFAULT_COLORS[index % DEFAULT_COLORS.length] + '40',
   };
 }
+
+export const DEFAULT_NUMBER_FORMAT: NumberFormatConfig = {
+  type: 'raw',
+  currencySymbol: '$',
+  currencyPosition: 'prefix',
+  decimalPlaces: 0,
+  thousandsSeparator: false,
+  prefix: '',
+  suffix: '',
+};
 
 export const DEFAULT_CHART_DATA: ChartData = {
   labels: ['January', 'February', 'March', 'April', 'May', 'June'],
@@ -78,4 +88,5 @@ export const DEFAULT_CUSTOMIZATION: ChartCustomization = {
   dataLabelFormat: 'value',
   dataLabelDecimalPlaces: 0,
   dataLabelPosition: 'end',
+  numberFormat: DEFAULT_NUMBER_FORMAT,
 };

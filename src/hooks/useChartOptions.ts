@@ -71,8 +71,13 @@ export function useChartOptions() {
     });
   }, []);
 
+  const loadCustomization = useCallback((custom: ChartCustomization) => {
+    setCustomization(custom);
+  }, []);
+
   return {
     customization,
+    loadCustomization,
     updateCustomization,
     updateDatasetConfig,
     syncDatasetConfigs,

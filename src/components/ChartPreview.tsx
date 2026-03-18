@@ -26,6 +26,7 @@ import { ChartType, ChartData, ChartCustomization } from '../types/chart';
 import { SEMANTIC_COLORS } from '../data/palettes';
 import { formatNumber } from '../utils/numberFormat';
 import { isProportionChart } from '../utils/chartHelpers';
+import { DEFAULT_COLORS } from '../utils/chartDefaults';
 
 ChartJS.register(
   CategoryScale,
@@ -89,7 +90,10 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
 
   const getChartJSData = useCallback((): ChartJSData => {
     if (isProportionChart(chartType)) {
-      const sliceColors = (customization.sliceColors ?? []).slice(0, chartData.labels.length);
+      const rawSliceColors = customization.sliceColors ?? [];
+      const sliceColors = chartData.labels.map((_, i) =>
+        rawSliceColors[i] ?? DEFAULT_COLORS[i % DEFAULT_COLORS.length]
+      );
       const borderColors = sliceColors.map(c => c + 'cc');
       const firstDataset = chartData.datasets[0] ?? { label: '', data: [] };
       const cfg = customization.datasetConfigs[0];

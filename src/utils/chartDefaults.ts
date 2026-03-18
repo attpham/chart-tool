@@ -88,6 +88,7 @@ export const DEFAULT_CUSTOMIZATION: ChartCustomization = {
     createDefaultDatasetConfig(0, 'Dataset 1'),
     createDefaultDatasetConfig(1, 'Dataset 2'),
   ],
+  sliceColors: [],
   selectedPalette: 'refactor',
   showDataLabels: false,
   dataLabelFont: { family: 'Mona Sans', size: 11, weight: 'normal', color: '#374151' },

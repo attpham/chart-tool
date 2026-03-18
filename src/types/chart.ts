@@ -83,6 +83,7 @@ export interface ChartCustomization {
   lineConfig: LineConfig;
   radarConfig: RadarConfig;
   datasetConfigs: DatasetConfig[];
+  sliceColors: string[];
   selectedPalette?: PaletteId;
   showDataLabels: boolean;
   dataLabelFont: FontConfig;

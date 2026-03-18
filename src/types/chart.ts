@@ -85,3 +85,11 @@ export interface AppState {
   customization: ChartCustomization;
   isDarkMode: boolean;
 }
+
+export interface SavedChart {
+  id: string;
+  name: string;
+  version: number;
+  savedAt: string;
+  state: AppState;
+}

@@ -45,6 +45,7 @@ export default function App() {
     updateCustomization,
     updateDatasetConfig,
     syncDatasetConfigs,
+    syncSliceColors,
     applyPalette,
   } = useChartOptions();
 
@@ -87,6 +88,10 @@ export default function App() {
   useEffect(() => {
     syncDatasetConfigs(chartData.datasets.length, chartData.datasets.map(d => d.label));
   }, [chartData.datasets.length, syncDatasetConfigs]);
+
+  useEffect(() => {
+    syncSliceColors(chartData.labels.length);
+  }, [chartData.labels.length, syncSliceColors]);
 
   const handleImportData = useCallback((data: ChartData) => {
     importData(data);
@@ -247,6 +252,7 @@ export default function App() {
         <div className="w-72 flex-shrink-0 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden">
           <ChartTypeSelector selectedType={chartType} onChange={setChartType} />
           <DataTable
+            chartType={chartType}
             chartData={chartData}
             onUpdateLabel={updateLabel}
             onUpdateCell={updateCell}
@@ -279,6 +285,7 @@ export default function App() {
           </div>
           <CustomizationPanel
             chartType={chartType}
+            chartLabels={chartData.labels}
             customization={customization}
             onUpdateCustomization={updateCustomization}
             onUpdateDatasetConfig={updateDatasetConfig}

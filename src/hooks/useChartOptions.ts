@@ -45,6 +45,25 @@ export function useChartOptions() {
     });
   }, []);
 
+  const syncSliceColors = useCallback((labelCount: number) => {
+    setCustomization(prev => {
+      const existing = prev.sliceColors ?? [];
+      const palette = prev.selectedPalette ? PALETTE_MAP[prev.selectedPalette] : null;
+      const newColors: string[] = [];
+      for (let i = 0; i < labelCount; i++) {
+        if (existing[i]) {
+          newColors.push(existing[i]);
+        } else {
+          const fallback = palette
+            ? palette.colors[i % palette.colors.length]
+            : createDefaultDatasetConfig(i, '').backgroundColor as string;
+          newColors.push(fallback);
+        }
+      }
+      return { ...prev, sliceColors: newColors };
+    });
+  }, []);
+
   const applyPalette = useCallback((paletteId: PaletteId, isDarkMode: boolean) => {
     const palette = PALETTE_MAP[paletteId];
     if (!palette) return;
@@ -59,10 +78,15 @@ export function useChartOptions() {
         borderColor: palette.colors[i % palette.colors.length],
       }));
 
+      const newSliceColors = prev.sliceColors.map((_, i) =>
+        palette.colors[i % palette.colors.length]
+      );
+
       return {
         ...prev,
         selectedPalette: paletteId,
         datasetConfigs: newConfigs,
+        sliceColors: newSliceColors,
         titleFont: { ...prev.titleFont, color: textColor },
         axisLabelFont: { ...prev.axisLabelFont, color: textColor },
         tickLabelFont: { ...prev.tickLabelFont, color: gridColor },
@@ -81,6 +105,7 @@ export function useChartOptions() {
     updateCustomization,
     updateDatasetConfig,
     syncDatasetConfigs,
+    syncSliceColors,
     applyPalette,
   };
 }

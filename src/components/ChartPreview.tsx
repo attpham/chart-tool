@@ -207,9 +207,12 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
           },
           anchor: c.dataLabelPosition === 'auto' ? 'center' : c.dataLabelPosition,
           align: c.dataLabelPosition === 'end' ? 'top' : (c.dataLabelPosition === 'start' ? 'bottom' : 'center'),
-          // Auto-contrast: use label's font color, but override for pie/bar if background is dark
+          // Auto-contrast only when the label sits inside the element (center/start).
+          // For 'end' and 'auto', the label floats above/outside on the chart background,
+          // so always use the configured font color (avoids invisible white-on-white text).
           color: (ctx: { dataset: { backgroundColor: string | string[] }; dataIndex: number }) => {
-            if (isPieOrDoughnut || chartType === 'bar') {
+            const labelIsInside = c.dataLabelPosition === 'center' || c.dataLabelPosition === 'start';
+            if (labelIsInside && (isPieOrDoughnut || chartType === 'bar')) {
               const bg = ctx.dataset.backgroundColor;
               const color = Array.isArray(bg) ? bg[ctx.dataIndex] : bg;
               if (typeof color === 'string' && color.startsWith('#')) {

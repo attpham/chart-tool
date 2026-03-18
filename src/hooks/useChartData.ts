@@ -79,13 +79,11 @@ export function useChartData() {
     }));
   }, []);
 
-  const importData = useCallback((data: ChartData) => {
-    setChartData(data);
-  }, []);
-
   const loadChartData = useCallback((data: ChartData) => {
     setChartData(data);
   }, []);
+
+  const importData = loadChartData;
 
   return {
     chartData,

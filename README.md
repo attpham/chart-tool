@@ -4,7 +4,7 @@ An interactive chart & graph builder that allows you to create beautiful, fully 
 
 ## Features
 
-- 📊 **6 Chart Types**: Bar, Line, Pie, Doughnut, Scatter, Area
+- 📊 **9 Chart Types**: Bar (+ Horizontal), Line, Pie, Doughnut, Scatter, Area, Radar, Polar Area
 - 🎨 **Full Customization**: Colors, fonts, borders, and more
 - 📝 **Editable Data Table**: Add/remove rows and columns, inline editing
 - 🔄 **Real-time Updates**: Charts re-render instantly when data or settings change

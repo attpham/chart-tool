@@ -1,4 +1,4 @@
-export type ChartType = 'bar' | 'line' | 'pie' | 'doughnut' | 'scatter' | 'area';
+export type ChartType = 'bar' | 'line' | 'pie' | 'doughnut' | 'scatter' | 'area' | 'radar' | 'polarArea';
 
 import type { PaletteId } from '../data/palettes';
 export type { PaletteId };
@@ -45,6 +45,7 @@ export interface BarConfig {
   borderRadius: number;
   barThickness: number | 'flex';
   grouped: boolean;
+  horizontal: boolean;
 }
 
 export interface LineConfig {
@@ -52,6 +53,12 @@ export interface LineConfig {
   pointStyle: PointStyle;
   pointRadius: number;
   fill: boolean;
+}
+
+export interface RadarConfig {
+  fill: boolean;
+  tension: number;
+  pointRadius: number;
 }
 
 export interface ChartCustomization {
@@ -74,6 +81,7 @@ export interface ChartCustomization {
   animationEnabled: boolean;
   barConfig: BarConfig;
   lineConfig: LineConfig;
+  radarConfig: RadarConfig;
   datasetConfigs: DatasetConfig[];
   selectedPalette?: PaletteId;
   showDataLabels: boolean;

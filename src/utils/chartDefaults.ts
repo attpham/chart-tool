@@ -71,12 +71,18 @@ export const DEFAULT_CUSTOMIZATION: ChartCustomization = {
     borderRadius: 4,
     barThickness: 'flex',
     grouped: true,
+    horizontal: false,
   },
   lineConfig: {
     tension: 0.4,
     pointStyle: 'circle',
     pointRadius: 4,
     fill: false,
+  },
+  radarConfig: {
+    fill: false,
+    tension: 0.4,
+    pointRadius: 4,
   },
   datasetConfigs: [
     createDefaultDatasetConfig(0, 'Dataset 1'),

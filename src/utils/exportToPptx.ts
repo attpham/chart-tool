@@ -497,6 +497,153 @@ function addPieDoughnutDataset(
   }
 }
 
+/**
+ * Render all radar chart datasets as filled/stroked polygons.
+ * Also draws the radial grid (concentric polygons + angle lines from center).
+ */
+function addRadarDatasets(
+  slide: pptxgen.Slide,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  chartInstance: ChartJS,
+  customization: ChartCustomization,
+  W: number,
+  H: number,
+): void {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const c = chartInstance as any;
+  const rScale = c.scales?.r;
+  if (!rScale) return;
+
+  const cx = px2x(rScale.xCenter, W);
+  const cy = px2y(rScale.yCenter, H);
+  const scaleAvg = ((AREA_W / W) + (AREA_H / H)) / 2;
+
+  // Draw grid: angle lines from center to each label, and concentric polygons
+  if (customization.showGridlines && rScale.ticks?.length) {
+    const numAngles = chartInstance.data.labels?.length ?? 0;
+    if (numAngles > 0) {
+      const angleStep = (2 * Math.PI) / numAngles;
+      const startAngle = -Math.PI / 2; // Chart.js radar starts at top
+
+      // Angle lines from center
+      for (let i = 0; i < numAngles; i++) {
+        const angle = startAngle + i * angleStep;
+        const outerR = rScale.drawingArea * scaleAvg;
+        const lineEndX = cx + Math.cos(angle) * outerR;
+        const lineEndY = cy + Math.sin(angle) * outerR;
+        addLine(slide, cx, cy, lineEndX, lineEndY, 'E5E7EB', 0.5);
+      }
+
+      // Concentric polygons for each tick
+      for (let ti = 0; ti < rScale.ticks.length; ti++) {
+        const tickR = rScale.getDistanceFromCenterForValue(rScale.ticks[ti].value) * scaleAvg;
+        if (tickR <= 0) continue;
+        const polyPts: { x: number; y: number }[] = [];
+        for (let i = 0; i < numAngles; i++) {
+          const angle = startAngle + i * angleStep;
+          polyPts.push({
+            x: cx + Math.cos(angle) * tickR,
+            y: cy + Math.sin(angle) * tickR,
+          });
+        }
+        // Draw polygon as individual lines (closed)
+        for (let i = 0; i < polyPts.length; i++) {
+          const next = polyPts[(i + 1) % polyPts.length];
+          addLine(slide, polyPts[i].x, polyPts[i].y, next.x, next.y, 'E5E7EB', 0.5);
+        }
+      }
+    }
+  }
+
+  // Draw each dataset as a polygon
+  const numDatasets = chartInstance.data.datasets.length;
+  for (let di = 0; di < numDatasets; di++) {
+    const meta = chartInstance.getDatasetMeta(di);
+    const cfg = customization.datasetConfigs[di] ?? customization.datasetConfigs[0];
+    if (!cfg) continue;
+
+    const borderHex = hexNoHash(cfg.borderColor);
+    const fillHex = hexNoHash(cfg.backgroundColor);
+    const borderPt = Math.max(MIN_BORDER_PT, cfg.borderWidth * BORDER_WIDTH_SCALE);
+
+    // Collect polygon points
+    const polyPts: { x: number; y: number }[] = [];
+    for (let pi = 0; pi < meta.data.length; pi++) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const el = meta.data[pi] as any;
+      if (el.x != null && el.y != null) {
+        polyPts.push({ x: px2x(el.x, W), y: px2y(el.y, H) });
+      }
+    }
+
+    if (polyPts.length >= 3) {
+      addPolygon(slide, polyPts, fillHex, 70, borderHex, borderPt);
+    }
+
+    // Draw data points at each vertex
+    const pointRadius = customization.radarConfig?.pointRadius ?? 4;
+    if (pointRadius > 0) {
+      const rPt = px2w(pointRadius, W) * scaleAvg;
+      for (const pt of polyPts) {
+        slide.addShape(SHAPE_ELLIPSE, {
+          x: pt.x - rPt / 2,
+          y: pt.y - rPt / 2,
+          w: rPt,
+          h: rPt,
+          fill: { color: borderHex },
+          line: { color: borderHex, width: borderPt },
+        });
+      }
+    }
+  }
+}
+
+/**
+ * Render all polar area chart datasets as wedge-shaped segments with varying radii.
+ */
+function addPolarAreaDatasets(
+  slide: pptxgen.Slide,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  chartInstance: ChartJS,
+  W: number,
+  H: number,
+): void {
+  const meta = chartInstance.getDatasetMeta(0);
+  const scaleAvg = ((AREA_W / W) + (AREA_H / H)) / 2;
+
+  for (let j = 0; j < meta.data.length; j++) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const el = meta.data[j] as any;
+
+    const cx = el.x as number;
+    const cy = el.y as number;
+    const startAngle = el.startAngle as number;
+    const endAngle = el.endAngle as number;
+    const outerRadius = el.outerRadius as number;
+
+    if (outerRadius <= 0) continue;
+
+    const fillColor: string = el.options?.backgroundColor ?? '#CCCCCC';
+    const borderColor: string = el.options?.borderColor ?? '#FFFFFF';
+    const borderWidth: number = el.options?.borderWidth ?? 2;
+
+    const outerR = outerRadius * scaleAvg;
+    const slideCx = px2x(cx, W);
+    const slideCy = px2y(cy, H);
+
+    // Draw polar area wedge as pie slice (inner radius = 0)
+    addPieSlice(
+      slide,
+      slideCx, slideCy,
+      outerR, 0,
+      startAngle, endAngle,
+      toHex(fillColor),
+      toHex(borderColor),
+      Math.max(MIN_BORDER_PT, borderWidth * BORDER_WIDTH_SCALE),
+    );
+  }
+}
+
 // ── Data labels ───────────────────────────────────────────────────────────────
 
 /**
@@ -520,10 +667,10 @@ function formatDataLabel(
   value: number,
   customization: ChartCustomization,
   total: number,
-  isPieOrDoughnut: boolean,
+  isPielike: boolean,
 ): string {
   const formatted = formatNumber(value, customization.numberFormat);
-  if (isPieOrDoughnut && customization.dataLabelFormat !== 'value') {
+  if (isPielike && customization.dataLabelFormat !== 'value') {
     const pct = total > 0
       ? ((value / total) * 100).toFixed(customization.numberFormat.decimalPlaces)
       : '0';
@@ -1019,7 +1166,7 @@ function addLegend(
 /**
  * Export the current chart to a PowerPoint (.pptx) file.
  *
- * All supported chart types (bar, line, area, scatter, pie, doughnut) are
+ * All supported chart types (bar, line, area, scatter, pie, doughnut, radar, polarArea) are
  * decomposed into native PowerPoint shapes and editable text boxes for a
  * fully WYSIWYG, editable result.
  */
@@ -1051,6 +1198,96 @@ export async function exportToPptx(
 
     // 1. Pie / doughnut slices as native shapes
     addPieDoughnutDataset(slide, chartInstance, W, H);
+
+    // 2. Chart title
+    addChartTitle(slide, c, customization, W, H, ca);
+
+    // 3. Legend
+    if (customization.showLegend) {
+      addLegend(slide, c, customization, W, H);
+    }
+
+    // 4. Data labels
+    addPieDataLabels(slide, chartInstance, customization, W, H);
+  } else if (chartType === 'radar') {
+    // ── Fully-editable decomposition for radar ────────────────────────────────
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const c = chartInstance as any;
+    const W: number = c.width;
+    const H: number = c.height;
+
+    if (!W || !H) {
+      throw new Error(
+        `Chart dimensions not available (W=${W}, H=${H}). ` +
+        'Ensure the chart is visible before exporting.',
+      );
+    }
+
+    const ca = c.chartArea ?? { left: 0, top: 0, right: W, bottom: H };
+
+    // 1. Radar grid + dataset polygons
+    addRadarDatasets(slide, chartInstance, customization, W, H);
+
+    // 2. Chart title
+    addChartTitle(slide, c, customization, W, H, ca);
+
+    // 3. Legend
+    if (customization.showLegend) {
+      addLegend(slide, c, customization, W, H);
+    }
+
+    // 4. Data labels (reuse pie-style labels positioned at each data point vertex)
+    if (customization.showDataLabels) {
+      const { dataLabelFont } = customization;
+      const fontFace = dataLabelFont.family;
+      const fontSize = pxToPt(dataLabelFont.size);
+      const bold = dataLabelFont.weight === 'bold';
+      const color = toHex(dataLabelFont.color);
+      const labelW = 0.7;
+      const labelH = 0.25;
+      const numDatasets = chartInstance.data.datasets.length;
+      for (let di = 0; di < numDatasets; di++) {
+        const meta = chartInstance.getDatasetMeta(di);
+        for (let pi = 0; pi < meta.data.length; pi++) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const el = meta.data[pi] as any;
+          if (el.x == null || el.y == null) continue;
+          const rawValue = chartInstance.data.datasets[di].data[pi];
+          const value = typeof rawValue === 'number' ? rawValue : 0;
+          const labelText = formatDataLabel(value, customization, 0, false);
+          slide.addText(labelText, {
+            x: px2x(el.x, W) - labelW / 2,
+            y: px2y(el.y, H) - labelH - 0.05,
+            w: labelW,
+            h: labelH,
+            fontFace,
+            fontSize,
+            bold,
+            color,
+            align: 'center',
+            valign: 'middle',
+          });
+        }
+      }
+    }
+  } else if (chartType === 'polarArea') {
+    // ── Fully-editable decomposition for polar area ───────────────────────────
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const c = chartInstance as any;
+    const W: number = c.width;
+    const H: number = c.height;
+
+    if (!W || !H) {
+      throw new Error(
+        `Chart dimensions not available (W=${W}, H=${H}). ` +
+        'Ensure the chart is visible before exporting.',
+      );
+    }
+
+    const ca = c.chartArea ?? { left: 0, top: 0, right: W, bottom: H };
+
+    // 1. Polar area wedge segments
+    addPolarAreaDatasets(slide, chartInstance, W, H);
 
     // 2. Chart title
     addChartTitle(slide, c, customization, W, H, ca);

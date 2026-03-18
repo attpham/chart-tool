@@ -117,6 +117,48 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
       };
     }
 
+    if (chartType === 'combo') {
+      const dsCount = chartData.datasets.length;
+      const lineIdx = customization.comboConfig.lineDatasetIndex < 0 || customization.comboConfig.lineDatasetIndex >= dsCount
+        ? dsCount - 1
+        : customization.comboConfig.lineDatasetIndex;
+      return {
+        labels: chartData.labels,
+        datasets: chartData.datasets.map((ds, di) => {
+          const cfg = customization.datasetConfigs[di] || customization.datasetConfigs[0];
+          const baseDataset = {
+            label: ds.label,
+            data: ds.data.map(d => d ?? 0),
+            backgroundColor: typeof cfg?.backgroundColor === 'string' ? cfg.backgroundColor : '#0FBF3E',
+            borderColor: typeof cfg?.borderColor === 'string' ? cfg.borderColor : '#08872B',
+            borderWidth: cfg?.borderWidth ?? 2,
+          };
+          if (di === lineIdx) {
+            const borderColor = typeof cfg?.borderColor === 'string' ? cfg.borderColor : '#08872B';
+            const bgColor = typeof cfg?.backgroundColor === 'string'
+              ? hexToRgba(cfg.backgroundColor, 0.2)
+              : '#0FBF3E33';
+            return {
+              ...baseDataset,
+              type: 'line' as const,
+              backgroundColor: bgColor,
+              borderColor,
+              tension: customization.comboConfig.lineTension,
+              pointRadius: customization.comboConfig.linePointRadius,
+              fill: customization.comboConfig.lineFill,
+              pointStyle: 'circle',
+            };
+          }
+          return {
+            ...baseDataset,
+            type: 'bar' as const,
+            borderRadius: customization.barConfig.borderRadius,
+            barThickness: customization.barConfig.barThickness,
+          };
+        }),
+      };
+    }
+
     return {
       labels: chartData.labels,
       datasets: chartData.datasets.map((ds, di) => {
@@ -336,7 +378,7 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
       ...(isHorizontal ? { indexAxis: 'y' as const } : {}),
       scales: {
         x: {
-          stacked: chartType === 'bar' && !c.barConfig.grouped,
+          stacked: (chartType === 'bar' || chartType === 'combo') && !c.barConfig.grouped,
           grid: {
             display: c.showGridlines,
             color: gridColor,
@@ -368,7 +410,7 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
           },
         },
         y: {
-          stacked: chartType === 'bar' && !c.barConfig.grouped,
+          stacked: (chartType === 'bar' || chartType === 'combo') && !c.barConfig.grouped,
           grid: {
             display: c.showGridlines,
             color: gridColor,
@@ -461,6 +503,8 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
         return <Radar {...(chartProps as Parameters<typeof Radar>[0])} />;
       case 'polarArea':
         return <PolarArea {...(chartProps as Parameters<typeof PolarArea>[0])} />;
+      case 'combo':
+        return <Bar {...(chartProps as Parameters<typeof Bar>[0])} />;
       default:
         return <Bar {...(chartProps as Parameters<typeof Bar>[0])} />;
     }

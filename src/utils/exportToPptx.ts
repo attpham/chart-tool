@@ -1322,6 +1322,31 @@ export async function exportToPptx(
           }
           break;
 
+        case 'combo': {
+          const dsCount = chartInstance.data.datasets.length;
+          const lineIdx = customization.comboConfig.lineDatasetIndex < 0 || customization.comboConfig.lineDatasetIndex >= dsCount
+            ? dsCount - 1
+            : customization.comboConfig.lineDatasetIndex;
+          if (di === lineIdx) {
+            addLineDataset(slide, meta.data, W, H, borderHex, borderPt);
+            addPointDataset(
+              slide, meta.data, W, H,
+              borderHex, fillHex,
+              customization.comboConfig.linePointRadius,
+              borderPt,
+            );
+          } else {
+            addBarDataset(
+              slide,
+              meta.data,
+              W, H,
+              fillHex, borderHex, borderPt,
+              customization.barConfig.borderRadius,
+            );
+          }
+          break;
+        }
+
         case 'line':
           addLineDataset(slide, meta.data, W, H, borderHex, borderPt);
           addPointDataset(

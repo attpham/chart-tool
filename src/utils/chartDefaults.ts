@@ -73,4 +73,9 @@ export const DEFAULT_CUSTOMIZATION: ChartCustomization = {
     createDefaultDatasetConfig(1, 'Dataset 2'),
   ],
   selectedPalette: 'refactor',
+  showDataLabels: false,
+  dataLabelFont: { family: 'Mona Sans', size: 11, weight: 'normal', color: '#374151' },
+  dataLabelFormat: 'value',
+  dataLabelDecimalPlaces: 0,
+  dataLabelPosition: 'end',
 };

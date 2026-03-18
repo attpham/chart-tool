@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChartCustomization, ChartType, FontFamily, PointStyle, LegendPosition, PaletteId } from '../types/chart';
+import { ChartCustomization, ChartType, FontFamily, PointStyle, LegendPosition, PaletteId, DataLabelFormat, DataLabelPosition } from '../types/chart';
 import { PALETTES } from '../data/palettes';
 import { ColorPicker } from './ColorPicker';
 import { ExportButton } from './ExportButton';
@@ -385,6 +385,98 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
           />
         </Section>
       )}
+
+      {/* Data Labels */}
+      <Section title="Data Labels" defaultOpen={false}>
+        <Toggle
+          label="Show Data Labels"
+          checked={customization.showDataLabels}
+          onChange={v => onUpdateCustomization('showDataLabels', v)}
+        />
+        {customization.showDataLabels && (
+          <>
+            <div>
+              <label className="text-xs text-gray-500 dark:text-gray-400">Position</label>
+              <select
+                value={customization.dataLabelPosition}
+                onChange={e => onUpdateCustomization('dataLabelPosition', e.target.value as DataLabelPosition)}
+                className="w-full mt-1 text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+              >
+                <option value="end">End (Outside)</option>
+                <option value="center">Center</option>
+                <option value="start">Start (Inside)</option>
+                <option value="auto">Auto</option>
+              </select>
+            </div>
+            {!['pie', 'doughnut'].includes(chartType) ? null : (
+              <div>
+                <label className="text-xs text-gray-500 dark:text-gray-400">Format</label>
+                <select
+                  value={customization.dataLabelFormat}
+                  onChange={e => onUpdateCustomization('dataLabelFormat', e.target.value as DataLabelFormat)}
+                  className="w-full mt-1 text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                >
+                  <option value="value">Value</option>
+                  <option value="percentage">Percentage</option>
+                  <option value="valueAndPercentage">Value + Percentage</option>
+                </select>
+              </div>
+            )}
+            <div>
+              <label className="text-xs text-gray-500 dark:text-gray-400">Decimal Places</label>
+              <input
+                type="number"
+                value={customization.dataLabelDecimalPlaces}
+                onChange={e => onUpdateCustomization('dataLabelDecimalPlaces', Math.max(0, Math.min(6, Number(e.target.value))))}
+                min={0}
+                max={6}
+                className="w-full mt-1 text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+              />
+            </div>
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Label Font</p>
+              <select
+                value={customization.dataLabelFont.family}
+                onChange={e => onUpdateCustomization('dataLabelFont', { ...customization.dataLabelFont, family: e.target.value as FontFamily })}
+                className="w-full text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+              >
+                {(['Mona Sans', 'Mona Sans Display', 'Mona Sans Mono', 'Inter', 'Roboto', 'Montserrat', 'Lato', 'Georgia'] as FontFamily[]).map(f => (
+                  <option key={f} value={f}>{f}</option>
+                ))}
+              </select>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs text-gray-500 dark:text-gray-400">Size</label>
+                  <input
+                    type="number"
+                    value={customization.dataLabelFont.size}
+                    onChange={e => onUpdateCustomization('dataLabelFont', { ...customization.dataLabelFont, size: Number(e.target.value) })}
+                    min={8}
+                    max={32}
+                    className="w-full text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 dark:text-gray-400">Weight</label>
+                  <select
+                    value={customization.dataLabelFont.weight}
+                    onChange={e => onUpdateCustomization('dataLabelFont', { ...customization.dataLabelFont, weight: e.target.value as 'bold' | 'normal' })}
+                    className="w-full text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                  >
+                    <option value="normal">Normal</option>
+                    <option value="bold">Bold</option>
+                  </select>
+                </div>
+              </div>
+              <ColorPicker
+                label="Color"
+                value={customization.dataLabelFont.color}
+                onChange={v => onUpdateCustomization('dataLabelFont', { ...customization.dataLabelFont, color: v })}
+              />
+            </div>
+          </>
+        )}
+      </Section>
 
       {/* Padding */}
       <Section title="Padding" defaultOpen={false}>

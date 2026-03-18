@@ -496,6 +496,227 @@ function addPieDoughnutDataset(
   }
 }
 
+// ── Data labels ───────────────────────────────────────────────────────────────
+
+/**
+ * Returns a readable hex label color for a given background hex.
+ * Uses perceived luminance: white text on dark backgrounds, dark text on light.
+ */
+function autoContrastColor(bgHex: string, fallback: string): string {
+  const h = bgHex.replace('#', '');
+  if (h.length < 6) return fallback;
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance < 0.5 ? 'FFFFFF' : fallback;
+}
+
+/**
+ * Format a numeric value according to data label settings.
+ */
+function formatDataLabel(
+  value: number,
+  customization: ChartCustomization,
+  total: number,
+  isPieOrDoughnut: boolean,
+): string {
+  const formatted = value.toFixed(customization.dataLabelDecimalPlaces);
+  if (isPieOrDoughnut && customization.dataLabelFormat !== 'value') {
+    const pct = total > 0 ? ((value / total) * 100).toFixed(customization.dataLabelDecimalPlaces) : '0';
+    if (customization.dataLabelFormat === 'percentage') return `${pct}%`;
+    if (customization.dataLabelFormat === 'valueAndPercentage') return `${formatted} (${pct}%)`;
+  }
+  return formatted;
+}
+
+/**
+ * Add data labels for cartesian chart types (bar, line, area, scatter).
+ * Labels are positioned above each data point / bar top.
+ */
+function addCartesianDataLabels(
+  slide: pptxgen.Slide,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  chartInstance: ChartJS,
+  customization: ChartCustomization,
+  chartType: ChartType,
+  W: number,
+  H: number,
+): void {
+  if (!customization.showDataLabels) return;
+
+  const { dataLabelFont, dataLabelPosition } = customization;
+  const fontFace = dataLabelFont.family;
+  const fontSize = pxToPt(dataLabelFont.size);
+  const bold = dataLabelFont.weight === 'bold';
+  const fallbackColor = toHex(dataLabelFont.color);
+
+  const labelH = 0.25;
+  const labelW = 0.7;
+  const offsetAbove = 0.08; // gap between element and label
+  const offsetInside = -0.25; // label inside the bar (center position)
+
+  const numDatasets = chartInstance.data.datasets.length;
+
+  for (let di = 0; di < numDatasets; di++) {
+    const meta = chartInstance.getDatasetMeta(di);
+    const cfg = customization.datasetConfigs[di] ?? customization.datasetConfigs[0];
+    const bgHex = cfg ? hexNoHash(cfg.backgroundColor) : fallbackColor;
+
+    for (let pi = 0; pi < meta.data.length; pi++) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const el = meta.data[pi] as any;
+      if (el.skip || el.x == null || el.y == null) continue;
+
+      const rawValue = chartInstance.data.datasets[di].data[pi];
+      const value = typeof rawValue === 'number' ? rawValue
+        : (rawValue as { y?: number } | null)?.y ?? 0;
+
+      const labelText = formatDataLabel(value, customization, 0, false);
+
+      let labelX = px2x(el.x, W) - labelW / 2;
+      let labelY: number;
+
+      if (chartType === 'bar') {
+        const top = Math.min(el.y, el.base);
+        const barH = Math.abs(el.base - el.y);
+        if (dataLabelPosition === 'start') {
+          // Bottom of bar (inside near base)
+          labelY = px2y(top + barH, H) - labelH - offsetAbove;
+        } else if (dataLabelPosition === 'center') {
+          labelY = px2y(top + barH / 2, H) - labelH / 2 + offsetInside / 2;
+        } else {
+          // 'end' (default) or 'auto': above the bar
+          labelY = px2y(top, H) - labelH - offsetAbove;
+        }
+        // Auto-contrast: white on dark bar fills
+        const color = autoContrastColor(bgHex, fallbackColor);
+        slide.addText(labelText, {
+          x: labelX,
+          y: labelY,
+          w: labelW,
+          h: labelH,
+          fontFace,
+          fontSize,
+          bold,
+          color,
+          align: 'center',
+          valign: 'middle',
+        });
+      } else {
+        // Line, area, scatter: label above the point
+        let offsetY: number;
+        if (dataLabelPosition === 'start') {
+          offsetY = offsetAbove + labelH;
+        } else if (dataLabelPosition === 'center') {
+          offsetY = 0;
+        } else {
+          offsetY = -offsetAbove;
+        }
+        labelY = px2y(el.y, H) + offsetY - labelH;
+        slide.addText(labelText, {
+          x: labelX,
+          y: labelY,
+          w: labelW,
+          h: labelH,
+          fontFace,
+          fontSize,
+          bold,
+          color: fallbackColor,
+          align: 'center',
+          valign: 'middle',
+        });
+      }
+    }
+  }
+}
+
+/**
+ * Add data labels for pie / doughnut charts.
+ * Labels are positioned at the midpoint of each slice.
+ */
+function addPieDataLabels(
+  slide: pptxgen.Slide,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  chartInstance: ChartJS,
+  customization: ChartCustomization,
+  W: number,
+  H: number,
+): void {
+  if (!customization.showDataLabels) return;
+
+  const { dataLabelFont, dataLabelPosition } = customization;
+  const fontFace = dataLabelFont.family;
+  const fontSize = pxToPt(dataLabelFont.size);
+  const bold = dataLabelFont.weight === 'bold';
+  const fallbackColor = toHex(dataLabelFont.color);
+
+  const meta = chartInstance.getDatasetMeta(0);
+  const values = chartInstance.data.datasets[0].data.map(v =>
+    typeof v === 'number' ? v : 0
+  );
+  const total = values.reduce((sum, v) => sum + v, 0);
+  const scaleAvg = ((AREA_W / W) + (AREA_H / H)) / 2;
+
+  const labelW = 0.8;
+  const labelH = 0.3;
+
+  for (let j = 0; j < meta.data.length; j++) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const el = meta.data[j] as any;
+    const startAngle: number = el.startAngle ?? 0;
+    const endAngle: number = el.endAngle ?? 0;
+    const outerRadius: number = el.outerRadius ?? 0;
+    const innerRadius: number = el.innerRadius ?? 0;
+    const cx = px2x(el.x, W);
+    const cy = px2y(el.y, H);
+
+    if (outerRadius <= 0) continue;
+
+    const midAngle = (startAngle + endAngle) / 2;
+    const outerR = outerRadius * scaleAvg;
+    const innerR = innerRadius * scaleAvg;
+
+    // Choose radius based on position setting
+    let labelR: number;
+    if (dataLabelPosition === 'end') {
+      labelR = outerR * 1.15; // outside the slice
+    } else if (dataLabelPosition === 'start') {
+      labelR = (innerR > 0 ? innerR : 0) + outerR * 0.25;
+    } else {
+      // center or auto
+      labelR = (outerR + Math.max(innerR, 0)) / 2;
+    }
+
+    const labelCx = cx + Math.cos(midAngle) * labelR;
+    const labelCy = cy + Math.sin(midAngle) * labelR;
+
+    const value = values[j] ?? 0;
+    const labelText = formatDataLabel(value, customization, total, true);
+
+    // Auto-contrast color: use fill color to determine text color
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const fillColor: string = (el.options?.backgroundColor as string) ?? '';
+    const fillHex = fillColor ? toHex(fillColor) : '';
+    const color = fillHex && dataLabelPosition !== 'end'
+      ? autoContrastColor(fillHex, fallbackColor)
+      : fallbackColor;
+
+    slide.addText(labelText, {
+      x: labelCx - labelW / 2,
+      y: labelCy - labelH / 2,
+      w: labelW,
+      h: labelH,
+      fontFace,
+      fontSize,
+      bold,
+      color,
+      align: 'center',
+      valign: 'middle',
+    });
+  }
+}
+
 // ── Text elements ─────────────────────────────────────────────────────────────
 
 function addTickLabels(
@@ -835,6 +1056,9 @@ export async function exportToPptx(
     if (customization.showLegend) {
       addLegend(slide, c, customization, W, H);
     }
+
+    // 4. Data labels
+    addPieDataLabels(slide, chartInstance, customization, W, H);
   } else {
     // ── Fully-editable decomposition for cartesian chart types ───────────────
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -931,6 +1155,9 @@ export async function exportToPptx(
     if (customization.showLegend) {
       addLegend(slide, c, customization, W, H);
     }
+
+    // 8. Data labels
+    addCartesianDataLabels(slide, chartInstance, customization, chartType, W, H);
   }
 
   await pptx.writeFile({ fileName: `${title}.pptx` });

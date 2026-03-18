@@ -9,6 +9,9 @@ export type PointStyle = 'circle' | 'cross' | 'crossRot' | 'dash' | 'line' | 're
 
 export type LegendPosition = 'top' | 'bottom' | 'left' | 'right';
 
+export type DataLabelFormat = 'value' | 'percentage' | 'valueAndPercentage';
+export type DataLabelPosition = 'auto' | 'start' | 'center' | 'end';
+
 export interface DatasetConfig {
   label: string;
   backgroundColor: string | string[];
@@ -61,6 +64,11 @@ export interface ChartCustomization {
   lineConfig: LineConfig;
   datasetConfigs: DatasetConfig[];
   selectedPalette?: PaletteId;
+  showDataLabels: boolean;
+  dataLabelFont: FontConfig;
+  dataLabelFormat: DataLabelFormat;
+  dataLabelDecimalPlaces: number;
+  dataLabelPosition: DataLabelPosition;
 }
 
 export interface ChartData {

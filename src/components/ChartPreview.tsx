@@ -15,6 +15,7 @@ import {
   ChartOptions,
   ChartData as ChartJSData,
 } from 'chart.js';
+import ChartDataLabels from 'chartjs-plugin-datalabels';
 import { Bar, Line, Pie, Doughnut, Scatter } from 'react-chartjs-2';
 import { ChartType, ChartData, ChartCustomization } from '../types/chart';
 import { SEMANTIC_COLORS } from '../data/palettes';
@@ -30,7 +31,8 @@ ChartJS.register(
   Tooltip,
   Legend,
   Filler,
-  ScatterController
+  ScatterController,
+  ChartDataLabels
 );
 
 interface ChartPreviewProps {
@@ -48,6 +50,18 @@ function hexToRgba(hex: string, alpha: number): string {
   const g = parseInt(result[2], 16);
   const b = parseInt(result[3], 16);
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+/** Returns true if text should be white on a given background hex color */
+function needsWhiteText(hexColor: string): boolean {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hexColor);
+  if (!result) return false;
+  const r = parseInt(result[1], 16);
+  const g = parseInt(result[2], 16);
+  const b = parseInt(result[3], 16);
+  // Perceived luminance
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance < 0.5;
 }
 
 export const ChartPreview: React.FC<ChartPreviewProps> = ({
@@ -167,6 +181,51 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
       ? (dark ? SEMANTIC_COLORS.white : SEMANTIC_COLORS.black)
       : (dark ? '#d1d5db' : c.axisLabelFont.color);
 
+    const isPieOrDoughnut = chartType === 'pie' || chartType === 'doughnut';
+    const totalPieValue = isPieOrDoughnut
+      ? chartData.datasets.reduce((sum, ds) => sum + ds.data.reduce((s: number, v) => s + (v ?? 0), 0), 0)
+      : 0;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const datalabelsConfig: any = c.showDataLabels
+      ? {
+          display: true,
+          font: {
+            family: c.dataLabelFont.family,
+            size: c.dataLabelFont.size,
+            weight: c.dataLabelFont.weight,
+          },
+          formatter: (value: number, ctx: { chart: { data: { datasets: { data: (number | null)[] }[] } }; dataIndex: number }) => {
+            const num = typeof value === 'number' ? value : (value as { y?: number })?.y ?? 0;
+            const formatted = num.toFixed(c.dataLabelDecimalPlaces);
+            if (isPieOrDoughnut && c.dataLabelFormat !== 'value') {
+              const pct = totalPieValue > 0 ? ((num / totalPieValue) * 100).toFixed(c.dataLabelDecimalPlaces) : '0';
+              if (c.dataLabelFormat === 'percentage') return `${pct}%`;
+              if (c.dataLabelFormat === 'valueAndPercentage') return `${formatted}\n${pct}%`;
+            }
+            return formatted;
+          },
+          anchor: c.dataLabelPosition === 'auto' ? 'center' : c.dataLabelPosition,
+          align: c.dataLabelPosition === 'end' ? 'top' : (c.dataLabelPosition === 'start' ? 'bottom' : 'center'),
+          // Auto-contrast only when the label sits inside the element (center/start).
+          // For 'end' and 'auto', the label floats above/outside on the chart background,
+          // so always use the configured font color (avoids invisible white-on-white text).
+          color: (ctx: { dataset: { backgroundColor: string | string[] }; dataIndex: number }) => {
+            const labelIsInside = c.dataLabelPosition === 'center' || c.dataLabelPosition === 'start';
+            if (labelIsInside && (isPieOrDoughnut || chartType === 'bar')) {
+              const bg = ctx.dataset.backgroundColor;
+              const color = Array.isArray(bg) ? bg[ctx.dataIndex] : bg;
+              if (typeof color === 'string' && color.startsWith('#')) {
+                return needsWhiteText(color) ? '#ffffff' : c.dataLabelFont.color;
+              }
+            }
+            return c.dataLabelFont.color;
+          },
+          padding: 4,
+          clip: false,
+        }
+      : { display: false };
+
     const baseOptions: ChartOptions = {
       responsive: true,
       maintainAspectRatio: true,
@@ -213,10 +272,12 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
           cornerRadius: 8,
           padding: 10,
         },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        datalabels: datalabelsConfig as any,
       },
     };
 
-    if (chartType === 'pie' || chartType === 'doughnut') {
+    if (isPieOrDoughnut) {
       return baseOptions;
     }
 
@@ -275,7 +336,7 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
         },
       },
     } as ChartOptions;
-  }, [chartType, customization, isDarkMode]);
+  }, [chartType, customization, isDarkMode, chartData]);
 
   const data = getChartJSData();
   const options = getChartOptions();

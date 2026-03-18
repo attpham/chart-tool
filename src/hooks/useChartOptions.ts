@@ -72,6 +72,9 @@ export function useChartOptions() {
         borderColor: palette.colors[i % palette.colors.length],
       }));
 
+      // Apply palette to slice colors. syncSliceColors keeps sliceColors in sync with
+      // label count, so this map should cover all slices. If there is ever a mismatch
+      // the fallback is handled in ChartPreview's getChartJSData.
       const newSliceColors = prev.sliceColors.map((_, i) =>
         palette.colors[i % palette.colors.length]
       );

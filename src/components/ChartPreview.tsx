@@ -88,7 +88,7 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
             ...customization.sliceColors,
             ...Array.from(
               { length: chartData.labels.length - customization.sliceColors.length },
-              (_, i) => customization.sliceColors[(customization.sliceColors.length + i) % Math.max(customization.sliceColors.length, 1)] ?? '#0FBF3E'
+              (_, i) => customization.sliceColors[i % Math.max(customization.sliceColors.length, 1)] ?? '#0FBF3E'
             ),
           ];
       const borderColors = sliceColors.map(c => c + 'cc');

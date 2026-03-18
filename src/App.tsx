@@ -11,7 +11,7 @@ import { NewChartDialog } from './components/NewChartDialog';
 import { useChartData } from './hooks/useChartData';
 import { useChartOptions } from './hooks/useChartOptions';
 import { useChartStorage } from './hooks/useChartStorage';
-import { AppState, ChartType, SavedChart } from './types/chart';
+import { AppState, ChartType, ChartData, SavedChart } from './types/chart';
 import { PaletteId } from './data/palettes';
 import { exportToPptx } from './utils/exportToPptx';
 import { DEFAULT_CHART_DATA, DEFAULT_CUSTOMIZATION } from './utils/chartDefaults';
@@ -36,6 +36,7 @@ export default function App() {
     removeRow,
     addColumn,
     removeColumn,
+    importData,
   } = useChartData();
 
   const {
@@ -86,6 +87,12 @@ export default function App() {
   useEffect(() => {
     syncDatasetConfigs(chartData.datasets.length, chartData.datasets.map(d => d.label));
   }, [chartData.datasets.length, syncDatasetConfigs]);
+
+  const handleImportData = useCallback((data: ChartData) => {
+    importData(data);
+    // Sync dataset configs immediately for new dataset labels/counts
+    syncDatasetConfigs(data.datasets.length, data.datasets.map(d => d.label));
+  }, [importData, syncDatasetConfigs]);
 
   useEffect(() => {
     if (isDarkMode) {
@@ -248,6 +255,7 @@ export default function App() {
             onRemoveRow={removeRow}
             onAddColumn={addColumn}
             onRemoveColumn={removeColumn}
+            onImportData={handleImportData}
           />
         </div>
 

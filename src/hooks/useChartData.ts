@@ -5,10 +5,6 @@ import { DEFAULT_CHART_DATA } from '../utils/chartDefaults';
 export function useChartData() {
   const [chartData, setChartData] = useState<ChartData>(DEFAULT_CHART_DATA);
 
-  const loadChartData = useCallback((data: ChartData) => {
-    setChartData(data);
-  }, []);
-
   const updateLabel = useCallback((index: number, value: string) => {
     setChartData(prev => {
       const newLabels = [...prev.labels];
@@ -83,9 +79,16 @@ export function useChartData() {
     }));
   }, []);
 
+  const importData = useCallback((data: ChartData) => {
+    setChartData(data);
+  }, []);
+
+  const loadChartData = useCallback((data: ChartData) => {
+    setChartData(data);
+  }, []);
+
   return {
     chartData,
-    loadChartData,
     updateLabel,
     updateCell,
     updateDatasetLabel,
@@ -93,5 +96,7 @@ export function useChartData() {
     removeRow,
     addColumn,
     removeColumn,
+    importData,
+    loadChartData,
   };
 }

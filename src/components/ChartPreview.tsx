@@ -19,6 +19,7 @@ import ChartDataLabels from 'chartjs-plugin-datalabels';
 import { Bar, Line, Pie, Doughnut, Scatter } from 'react-chartjs-2';
 import { ChartType, ChartData, ChartCustomization } from '../types/chart';
 import { SEMANTIC_COLORS } from '../data/palettes';
+import { formatNumber } from '../utils/numberFormat';
 
 ChartJS.register(
   CategoryScale,
@@ -197,9 +198,9 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
           },
           formatter: (value: number, ctx: { chart: { data: { datasets: { data: (number | null)[] }[] } }; dataIndex: number }) => {
             const num = typeof value === 'number' ? value : (value as { y?: number })?.y ?? 0;
-            const formatted = num.toFixed(c.dataLabelDecimalPlaces);
+            const formatted = formatNumber(num, c.numberFormat);
             if (isPieOrDoughnut && c.dataLabelFormat !== 'value') {
-              const pct = totalPieValue > 0 ? ((num / totalPieValue) * 100).toFixed(c.dataLabelDecimalPlaces) : '0';
+              const pct = totalPieValue > 0 ? ((num / totalPieValue) * 100).toFixed(c.numberFormat.decimalPlaces) : '0';
               if (c.dataLabelFormat === 'percentage') return `${pct}%`;
               if (c.dataLabelFormat === 'valueAndPercentage') return `${formatted}\n${pct}%`;
             }
@@ -321,6 +322,11 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
               family: c.tickLabelFont.family,
               size: c.tickLabelFont.size,
               weight: c.tickLabelFont.weight as 'bold' | 'normal',
+            },
+            callback: (value: number | string) => {
+              const num = typeof value === 'number' ? value : parseFloat(String(value));
+              if (isNaN(num)) return String(value);
+              return formatNumber(num, c.numberFormat);
             },
           },
           title: {

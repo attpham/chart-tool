@@ -12,7 +12,7 @@ import { useChartStorage } from './hooks/useChartStorage';
 import type { AppState, ChartData, SavedChart } from './types/chart';
 import { useChartData } from './hooks/useChartData';
 import { useChartOptions } from './hooks/useChartOptions';
-import { ChartType, ChartData } from './types/chart';
+import { ChartType } from './types/chart';
 import { PaletteId } from './data/palettes';
 import { exportToPptx } from './utils/exportToPptx';
 import { DEFAULT_CHART_DATA, DEFAULT_CUSTOMIZATION } from './utils/chartDefaults';

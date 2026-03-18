@@ -5,7 +5,9 @@ import {
   LinearScale,
   RadialLinearScale,
   BarElement,
+  BarController,
   LineElement,
+  LineController,
   PointElement,
   ArcElement,
   Title,
@@ -13,6 +15,8 @@ import {
   Legend,
   Filler,
   ScatterController,
+  RadarController,
+  PolarAreaController,
   ChartOptions,
   ChartData as ChartJSData,
 } from 'chart.js';
@@ -28,7 +32,9 @@ ChartJS.register(
   LinearScale,
   RadialLinearScale,
   BarElement,
+  BarController,
   LineElement,
+  LineController,
   PointElement,
   ArcElement,
   Title,
@@ -36,6 +42,8 @@ ChartJS.register(
   Legend,
   Filler,
   ScatterController,
+  RadarController,
+  PolarAreaController,
   ChartDataLabels
 );
 

@@ -1,6 +1,7 @@
 import pptxgen from 'pptxgenjs';
 import { Chart as ChartJS } from 'chart.js';
 import { ChartCustomization, ChartType } from '../types/chart';
+import { formatNumber } from './numberFormat';
 
 // PptxGenJS ShapeType enum values are plain strings at runtime.
 // Define them explicitly to avoid CJS/ESM interop issues with Vite.
@@ -521,9 +522,11 @@ function formatDataLabel(
   total: number,
   isPieOrDoughnut: boolean,
 ): string {
-  const formatted = value.toFixed(customization.dataLabelDecimalPlaces);
+  const formatted = formatNumber(value, customization.numberFormat);
   if (isPieOrDoughnut && customization.dataLabelFormat !== 'value') {
-    const pct = total > 0 ? ((value / total) * 100).toFixed(customization.dataLabelDecimalPlaces) : '0';
+    const pct = total > 0
+      ? ((value / total) * 100).toFixed(customization.numberFormat.decimalPlaces)
+      : '0';
     if (customization.dataLabelFormat === 'percentage') return `${pct}%`;
     if (customization.dataLabelFormat === 'valueAndPercentage') return `${formatted} (${pct}%)`;
   }

@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { ChartCustomization, ChartType, FontFamily, PointStyle, LegendPosition, PaletteId, DataLabelFormat, DataLabelPosition } from '../types/chart';
+import { ChartCustomization, ChartType, FontFamily, PointStyle, LegendPosition, PaletteId, DataLabelFormat, DataLabelPosition, NumberFormatType } from '../types/chart';
 import { PALETTES } from '../data/palettes';
 import { ColorPicker } from './ColorPicker';
 import { ExportButton } from './ExportButton';
+import { formatNumber } from '../utils/numberFormat';
 
 interface SectionProps {
   title: string;
@@ -426,8 +427,8 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
               <label className="text-xs text-gray-500 dark:text-gray-400">Decimal Places</label>
               <input
                 type="number"
-                value={customization.dataLabelDecimalPlaces}
-                onChange={e => onUpdateCustomization('dataLabelDecimalPlaces', Math.max(0, Math.min(6, Number(e.target.value))))}
+                value={customization.numberFormat.decimalPlaces}
+                onChange={e => onUpdateCustomization('numberFormat', { ...customization.numberFormat, decimalPlaces: Number(e.target.value) })}
                 min={0}
                 max={6}
                 className="w-full mt-1 text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
@@ -476,6 +477,100 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
             </div>
           </>
         )}
+      </Section>
+
+      {/* Number Format */}
+      <Section title="Number Format" defaultOpen={false}>
+        <div>
+          <label className="text-xs text-gray-500 dark:text-gray-400">Format Type</label>
+          <select
+            value={customization.numberFormat.type}
+            onChange={e => onUpdateCustomization('numberFormat', { ...customization.numberFormat, type: e.target.value as NumberFormatType })}
+            className="w-full mt-1 text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+          >
+            <option value="raw">Raw Number</option>
+            <option value="currency">Currency</option>
+            <option value="percent">Percent</option>
+            <option value="abbreviated">Abbreviated (K / M / B)</option>
+            <option value="custom">Custom Prefix / Suffix</option>
+          </select>
+        </div>
+
+        {customization.numberFormat.type === 'currency' && (
+          <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs text-gray-500 dark:text-gray-400">Symbol</label>
+                <input
+                  value={customization.numberFormat.currencySymbol}
+                  onChange={e => onUpdateCustomization('numberFormat', { ...customization.numberFormat, currencySymbol: e.target.value })}
+                  className="w-full mt-1 text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                  placeholder="$"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 dark:text-gray-400">Position</label>
+                <select
+                  value={customization.numberFormat.currencyPosition}
+                  onChange={e => onUpdateCustomization('numberFormat', { ...customization.numberFormat, currencyPosition: e.target.value as 'prefix' | 'suffix' })}
+                  className="w-full mt-1 text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                >
+                  <option value="prefix">Prefix</option>
+                  <option value="suffix">Suffix</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {customization.numberFormat.type === 'custom' && (
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-xs text-gray-500 dark:text-gray-400">Prefix</label>
+              <input
+                value={customization.numberFormat.prefix}
+                onChange={e => onUpdateCustomization('numberFormat', { ...customization.numberFormat, prefix: e.target.value })}
+                className="w-full mt-1 text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                placeholder="e.g. €"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 dark:text-gray-400">Suffix</label>
+              <input
+                value={customization.numberFormat.suffix}
+                onChange={e => onUpdateCustomization('numberFormat', { ...customization.numberFormat, suffix: e.target.value })}
+                className="w-full mt-1 text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                placeholder="e.g.  units"
+              />
+            </div>
+          </div>
+        )}
+
+        <Slider
+          label="Decimal Places"
+          value={customization.numberFormat.decimalPlaces}
+          min={0}
+          max={6}
+          onChange={v => onUpdateCustomization('numberFormat', { ...customization.numberFormat, decimalPlaces: v })}
+        />
+
+        <Toggle
+          label="Thousands Separator"
+          checked={customization.numberFormat.thousandsSeparator}
+          onChange={v => onUpdateCustomization('numberFormat', { ...customization.numberFormat, thousandsSeparator: v })}
+        />
+
+        {/* Live preview */}
+        <div className="mt-1">
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Preview</p>
+          <div className="flex gap-2 text-xs font-mono text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-900/50 rounded px-2 py-1.5">
+            {[1234567, -42500, 0.75].map(n => (
+              <span key={n} className="border-r border-gray-200 dark:border-gray-700 pr-2 last:border-0 last:pr-0">
+                {formatNumber(n, customization.numberFormat)}
+              </span>
+            ))}
+          </div>
+        </div>
       </Section>
 
       {/* Padding */}

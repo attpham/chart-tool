@@ -79,6 +79,10 @@ export function useChartData() {
     }));
   }, []);
 
+  const importData = useCallback((data: ChartData) => {
+    setChartData(data);
+  }, []);
+
   return {
     chartData,
     updateLabel,
@@ -88,5 +92,6 @@ export function useChartData() {
     removeRow,
     addColumn,
     removeColumn,
+    importData,
   };
 }

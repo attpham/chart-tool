@@ -253,7 +253,18 @@ function addAxisBorders(
 
 // ── Dataset shapes ────────────────────────────────────────────────────────────
 
-/** Generate PPTX freeform points (in slide inches) for a custom bar shape. */
+/**
+ * Generate PPTX freeform polygon points (in slide-inch coordinates) for a custom bar shape.
+ *
+ * @param shape   - The bar shape to generate points for. Returns `[]` for 'rectangle'
+ *                  (callers should fall back to the native `addShape(SHAPE_RECT, …)` path).
+ * @param x       - Left edge of the bar bounding box, in slide inches from the left margin.
+ * @param y       - Top edge of the bar bounding box, in slide inches from the top margin.
+ * @param w       - Width of the bar bounding box, in slide inches.
+ * @param h       - Height of the bar bounding box, in slide inches.
+ * @param horizontal - `true` for horizontal (bar grows left→right), `false` for vertical.
+ * @returns An array of `{ x, y }` points forming a closed polygon, or `[]` for 'rectangle'.
+ */
 function barShapePoints(
   shape: BarShape,
   x: number,  // slide left edge of bar (inches)

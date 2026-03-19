@@ -83,10 +83,13 @@ function needsWhiteText(hexColor: string): boolean {
 // registered plugin can read it without any React lifecycle ordering issues.
 // Using a globally registered plugin ensures it fires for every chart update,
 // regardless of when react-chartjs-2 calls chart.update() internally.
-const _barShapeState: { shape: BarShape; horizontal: boolean } = {
+const barShapePluginState: { shape: BarShape; horizontal: boolean } = {
   shape: 'rectangle',
   horizontal: false,
 };
+
+/** Fallback bar fill color when a dataset's backgroundColor is not a plain string */
+const DEFAULT_BAR_COLOR = DEFAULT_COLORS[0];
 
 /** Draw a custom bar shape path on a canvas 2D context */
 function drawBarShape(
@@ -300,11 +303,21 @@ function drawBarShape(
   }
 }
 
-/** Globally registered plugin that draws custom bar shapes using _barShapeState. */
+/**
+ * Globally registered Chart.js plugin that replaces bar elements with custom shapes.
+ *
+ * Architectural note: The plugin reads from `barShapePluginState` (a module-level
+ * object) instead of using closures or per-chart plugin instances. This sidesteps a
+ * limitation in react-chartjs-2 where the `plugins` prop is only applied at chart
+ * creation time and is not updated on subsequent re-renders. By registering the plugin
+ * globally and syncing state through a mutable object that is updated synchronously
+ * during React render, we guarantee the plugin always reflects the latest shape
+ * selection without needing to destroy/recreate the chart instance.
+ */
 const customBarShapePlugin: Plugin = {
   id: 'customBarShape',
   afterDatasetsDraw(chart) {
-    const { shape, horizontal } = _barShapeState;
+    const { shape, horizontal } = barShapePluginState;
     if (shape === 'rectangle') return; // nothing to override
 
     const ctx = chart.ctx;
@@ -352,7 +365,7 @@ const customBarShapePlugin: Plugin = {
         }
 
         // Draw the custom shape
-        ctx.fillStyle = typeof color === 'string' ? color : '#0FBF3E';
+        ctx.fillStyle = typeof color === 'string' ? color : DEFAULT_BAR_COLOR;
         drawBarShape(ctx, shape, barX, barY, barW, barH, horizontal);
         ctx.fill();
 
@@ -752,8 +765,8 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
   // This happens synchronously during render, before Chart.js draws.
   const barShape = customization.barConfig?.shape ?? 'rectangle';
   const isBarOrCombo = chartType === 'bar' || chartType === 'combo';
-  _barShapeState.shape = isBarOrCombo ? barShape : 'rectangle';
-  _barShapeState.horizontal = customization.barConfig.horizontal;
+  barShapePluginState.shape = isBarOrCombo ? barShape : 'rectangle';
+  barShapePluginState.horizontal = customization.barConfig.horizontal;
 
   useEffect(() => {
     document.fonts.ready.then(() => {

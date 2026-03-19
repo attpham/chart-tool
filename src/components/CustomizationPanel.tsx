@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChartCustomization, ChartType, FontFamily, PointStyle, LegendPosition, PaletteId, DataLabelFormat, DataLabelPosition, NumberFormatType, RadarConfig, ComboConfig } from '../types/chart';
+import { ChartCustomization, ChartType, FontFamily, PointStyle, LegendPosition, PaletteId, DataLabelFormat, DataLabelPosition, NumberFormatType, RadarConfig, ComboConfig, BarShape } from '../types/chart';
 import { PALETTES } from '../data/palettes';
 import { ColorPicker } from './ColorPicker';
 import { ExportButton } from './ExportButton';
@@ -375,6 +375,21 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
               onChange={v => onUpdateCustomization('barConfig', { ...customization.barConfig, horizontal: v })}
             />
           )}
+          <div>
+            <label className="text-xs text-gray-500 dark:text-gray-400">Bar Shape</label>
+            <select
+              value={customization.barConfig.shape ?? 'rectangle'}
+              onChange={e => onUpdateCustomization('barConfig', { ...customization.barConfig, shape: e.target.value as BarShape })}
+              className="w-full mt-1 text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+            >
+              <option value="rectangle">Rectangle</option>
+              <option value="rounded-pill">Rounded Pill</option>
+              <option value="chevron">Chevron</option>
+              <option value="hexagon">Hexagon</option>
+              <option value="diamond">Diamond</option>
+              <option value="triangle">Triangle</option>
+            </select>
+          </div>
         </Section>
       )}
 

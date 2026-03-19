@@ -41,11 +41,14 @@ export interface FontConfig {
   color: string;
 }
 
+export type BarShape = 'rectangle' | 'rounded-pill' | 'chevron' | 'hexagon' | 'diamond' | 'triangle';
+
 export interface BarConfig {
   borderRadius: number;
   barThickness: number | 'flex';
   grouped: boolean;
   horizontal: boolean;
+  shape: BarShape;
 }
 
 export interface RadarConfig {

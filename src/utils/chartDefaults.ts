@@ -72,6 +72,7 @@ export const DEFAULT_CUSTOMIZATION: ChartCustomization = {
     barThickness: 'flex',
     grouped: true,
     horizontal: false,
+    shape: 'rectangle',
   },
   lineConfig: {
     tension: 0.4,

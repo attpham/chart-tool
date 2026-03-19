@@ -1,6 +1,6 @@
 import pptxgen from 'pptxgenjs';
 import { Chart as ChartJS } from 'chart.js';
-import { ChartCustomization, ChartType } from '../types/chart';
+import { ChartCustomization, ChartType, BarShape } from '../types/chart';
 import { formatNumber } from './numberFormat';
 import { isProportionChart } from './chartHelpers';
 
@@ -253,6 +253,112 @@ function addAxisBorders(
 
 // ── Dataset shapes ────────────────────────────────────────────────────────────
 
+/** Generate PPTX freeform points (in slide inches) for a custom bar shape. */
+function barShapePoints(
+  shape: BarShape,
+  x: number,  // slide left edge of bar (inches)
+  y: number,  // slide top edge of bar (inches)
+  w: number,  // bar width (inches)
+  h: number,  // bar height (inches)
+  horizontal: boolean,
+): { x: number; y: number }[] {
+  const left = x;
+  const right = x + w;
+  const top = y;
+  const bottom = y + h;
+  const midX = (left + right) / 2;
+  const midY = (top + bottom) / 2;
+
+  switch (shape) {
+    case 'rounded-pill':
+      // PptxGenJS does not directly support elliptical arcs in freeform.
+      // Approximate as a regular rectangle with large radius handled elsewhere.
+      return [
+        { x: left, y: top },
+        { x: right, y: top },
+        { x: right, y: bottom },
+        { x: left, y: bottom },
+      ];
+
+    case 'chevron': {
+      const ARROW_RATIO = 0.2;
+      if (horizontal) {
+        const arrowSize = h * ARROW_RATIO;
+        return [
+          { x: left + arrowSize, y: top },
+          { x: right - arrowSize, y: top },
+          { x: right, y: midY },
+          { x: right - arrowSize, y: bottom },
+          { x: left + arrowSize, y: bottom },
+          { x: left, y: midY },
+        ];
+      } else {
+        const arrowSize = w * ARROW_RATIO;
+        return [
+          { x: left, y: bottom - arrowSize },
+          { x: midX, y: top },
+          { x: right, y: bottom - arrowSize },
+          { x: right, y: bottom },
+          { x: midX + arrowSize, y: bottom },
+          { x: midX, y: bottom - arrowSize },
+          { x: midX - arrowSize, y: bottom },
+          { x: left, y: bottom },
+        ];
+      }
+    }
+
+    case 'hexagon': {
+      if (horizontal) {
+        const indent = h * 0.25;
+        return [
+          { x: left + indent, y: top },
+          { x: right - indent, y: top },
+          { x: right, y: midY },
+          { x: right - indent, y: bottom },
+          { x: left + indent, y: bottom },
+          { x: left, y: midY },
+        ];
+      } else {
+        const indent = w * 0.25;
+        return [
+          { x: midX, y: top },
+          { x: right, y: top + indent },
+          { x: right, y: bottom - indent },
+          { x: midX, y: bottom },
+          { x: left, y: bottom - indent },
+          { x: left, y: top + indent },
+        ];
+      }
+    }
+
+    case 'diamond':
+      return [
+        { x: midX, y: top },
+        { x: right, y: midY },
+        { x: midX, y: bottom },
+        { x: left, y: midY },
+      ];
+
+    case 'triangle':
+      if (horizontal) {
+        return [
+          { x: left, y: top },
+          { x: right, y: midY },
+          { x: left, y: bottom },
+        ];
+      } else {
+        return [
+          { x: left, y: bottom },
+          { x: midX, y: top },
+          { x: right, y: bottom },
+        ];
+      }
+
+    default:
+      return [];
+  }
+}
+
 function addBarDataset(
   slide: pptxgen.Slide,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -263,6 +369,7 @@ function addBarDataset(
   borderHex: string,
   borderPt: number,
   borderRadiusPx: number,
+  shape: BarShape = 'rectangle',
 ): void {
   for (const el of elements) {
     if (el.x == null || el.base == null) continue;
@@ -276,8 +383,20 @@ function addBarDataset(
     const y = px2y(top, H);
     const w = px2w(barW, W);
     const h = px2h(height, H);
-    const rectRadius = borderRadiusPx > 0 ? px2w(borderRadiusPx, W) : undefined;
 
+    if (shape !== 'rectangle') {
+      const points = barShapePoints(shape, x, y, w, h, false);
+      if (points.length > 0) {
+        slide.addShape('freeform' as pptxgen.SHAPE_NAME, {
+          points,
+          fill: { color: fillHex },
+          line: { color: borderHex, width: borderPt },
+        });
+        continue;
+      }
+    }
+
+    const rectRadius = borderRadiusPx > 0 ? px2w(borderRadiusPx, W) : undefined;
     slide.addShape(SHAPE_RECT, {
       x,
       y,
@@ -300,6 +419,7 @@ function addHorizontalBarDataset(
   borderHex: string,
   borderPt: number,
   borderRadiusPx: number,
+  shape: BarShape = 'rectangle',
 ): void {
   for (const el of elements) {
     // For horizontal bars: el.x is the value end, el.base is the baseline,
@@ -315,8 +435,20 @@ function addHorizontalBarDataset(
     const y = px2y(el.y - barH / 2, H);
     const w = px2w(width, W);
     const h = px2h(barH, H);
-    const rectRadius = borderRadiusPx > 0 ? px2h(borderRadiusPx, H) : undefined;
 
+    if (shape !== 'rectangle') {
+      const points = barShapePoints(shape, x, y, w, h, true);
+      if (points.length > 0) {
+        slide.addShape('freeform' as pptxgen.SHAPE_NAME, {
+          points,
+          fill: { color: fillHex },
+          line: { color: borderHex, width: borderPt },
+        });
+        continue;
+      }
+    }
+
+    const rectRadius = borderRadiusPx > 0 ? px2h(borderRadiusPx, H) : undefined;
     slide.addShape(SHAPE_RECT, {
       x,
       y,
@@ -1310,6 +1442,7 @@ export async function exportToPptx(
               W, H,
               fillHex, borderHex, borderPt,
               customization.barConfig.borderRadius,
+              customization.barConfig.shape ?? 'rectangle',
             );
           } else {
             addBarDataset(
@@ -1318,6 +1451,7 @@ export async function exportToPptx(
               W, H,
               fillHex, borderHex, borderPt,
               customization.barConfig.borderRadius,
+              customization.barConfig.shape ?? 'rectangle',
             );
           }
           break;
@@ -1342,6 +1476,7 @@ export async function exportToPptx(
               W, H,
               fillHex, borderHex, borderPt,
               customization.barConfig.borderRadius,
+              customization.barConfig.shape ?? 'rectangle',
             );
           }
           break;

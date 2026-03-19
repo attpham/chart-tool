@@ -52,6 +52,8 @@ export const DEFAULT_CHART_DATA: ChartData = {
 export const DEFAULT_CUSTOMIZATION: ChartCustomization = {
   title: 'My Chart',
   titleFont: { family: 'Mona Sans', size: 20, weight: 'bold', color: SEMANTIC_COLORS.black },
+  subtitle: '',
+  subtitleFont: { family: 'Mona Sans', size: 14, weight: 'normal', color: '#6b7280' },
   axisLabelFont: { family: 'Mona Sans', size: 14, weight: 'bold', color: SEMANTIC_COLORS.black },
   tickLabelFont: { family: 'Mona Sans Mono', size: 12, weight: 'normal', color: SEMANTIC_COLORS.gray3 },
   legendFont: { family: 'Mona Sans', size: 12, weight: 'normal', color: SEMANTIC_COLORS.black },
@@ -61,6 +63,9 @@ export const DEFAULT_CUSTOMIZATION: ChartCustomization = {
   showAxisLabels: true,
   xAxisLabel: 'Categories',
   yAxisLabel: 'Values',
+  yAxisMin: null,
+  yAxisMax: null,
+  yAxisStepSize: null,
   paddingTop: 20,
   paddingBottom: 20,
   paddingLeft: 20,

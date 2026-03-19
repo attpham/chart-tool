@@ -11,6 +11,7 @@ import {
   PointElement,
   ArcElement,
   Title,
+  SubTitle,
   Tooltip,
   Legend,
   Filler,
@@ -40,6 +41,7 @@ ChartJS.register(
   PointElement,
   ArcElement,
   Title,
+  SubTitle,
   Tooltip,
   Legend,
   Filler,
@@ -615,6 +617,19 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
             weight: c.titleFont.weight as 'bold' | 'normal',
           },
         },
+        subtitle: {
+          display: !!c.subtitle,
+          text: c.subtitle,
+          color: hasPalette
+            ? (dark ? SEMANTIC_COLORS.white : SEMANTIC_COLORS.gray3)
+            : (dark ? '#9ca3af' : c.subtitleFont.color),
+          font: {
+            family: c.subtitleFont.family,
+            size: c.subtitleFont.size,
+            weight: c.subtitleFont.weight as 'bold' | 'normal',
+          },
+          padding: { bottom: 10 },
+        },
         legend: {
           display: c.showLegend,
           position: c.legendPosition,
@@ -724,6 +739,8 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
         },
         y: {
           stacked: (chartType === 'bar' || chartType === 'combo') && !c.barConfig.grouped,
+          min: c.yAxisMin ?? undefined,
+          max: c.yAxisMax ?? undefined,
           grid: {
             display: c.showGridlines,
             color: gridColor,
@@ -735,6 +752,7 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
               size: c.tickLabelFont.size,
               weight: c.tickLabelFont.weight as 'bold' | 'normal',
             },
+            ...(c.yAxisStepSize != null ? { stepSize: c.yAxisStepSize } : {}),
             ...(!isHorizontal ? {
               callback: (value: number | string) => {
                 const num = typeof value === 'number' ? value : parseFloat(String(value));

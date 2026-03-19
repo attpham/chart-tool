@@ -15,6 +15,7 @@ import { useChartOptions } from './hooks/useChartOptions';
 import { ChartType, ChartData } from './types/chart';
 import { PaletteId } from './data/palettes';
 import { exportToPptx } from './utils/exportToPptx';
+import { exportChartAsImage } from './utils/exportImage';
 import { DEFAULT_CHART_DATA, DEFAULT_CUSTOMIZATION } from './utils/chartDefaults';
 
 export default function App() {
@@ -111,6 +112,11 @@ export default function App() {
     if (!chartRef.current) throw new Error('Chart not ready');
     await exportToPptx(chartRef.current, customization, chartType);
   }, [customization, chartType]);
+
+  const handleExportImage = useCallback((format: 'png' | 'jpeg') => {
+    if (!chartRef.current) return;
+    exportChartAsImage(chartRef.current.canvas, format, customization.title || 'chart');
+  }, [customization.title]);
 
   const handleApplyPalette = useCallback((paletteId: PaletteId) => {
     applyPalette(paletteId, isDarkMode);
@@ -291,6 +297,7 @@ export default function App() {
             onUpdateDatasetConfig={updateDatasetConfig}
             onApplyPalette={handleApplyPalette}
             onExport={handleExport}
+            onExportImage={handleExportImage}
           />
         </div>
       </div>

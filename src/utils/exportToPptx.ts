@@ -1203,7 +1203,7 @@ function addChartTitle(
   H: number,
   ca: { left: number; top: number; right: number; bottom: number },
 ): void {
-  const { title, titleFont } = customization;
+  const { title, titleFont, subtitle, subtitleFont } = customization;
   if (!title) return;
 
   const fontFace = titleFont.family;
@@ -1236,6 +1236,28 @@ function addChartTitle(
     align: 'center',
     valign: 'middle',
   });
+
+  if (subtitle) {
+    const subFontFace = subtitleFont.family;
+    const subFontSize = pxToPt(subtitleFont.size);
+    const subBold = subtitleFont.weight === 'bold';
+    const subColor = toHex(subtitleFont.color);
+    const subY = titleY + titleH;
+    const subH = Math.max(pxToPt(subtitleFont.size) / 72 + 0.1, 0.2);
+
+    slide.addText(subtitle, {
+      x: AREA_X,
+      y: subY,
+      w: AREA_W,
+      h: subH,
+      fontFace: subFontFace,
+      fontSize: subFontSize,
+      bold: subBold,
+      color: subColor,
+      align: 'center',
+      valign: 'top',
+    });
+  }
 }
 
 function addLegend(

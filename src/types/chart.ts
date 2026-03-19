@@ -78,6 +78,8 @@ export interface LineConfig {
 export interface ChartCustomization {
   title: string;
   titleFont: FontConfig;
+  subtitle: string;
+  subtitleFont: FontConfig;
   axisLabelFont: FontConfig;
   tickLabelFont: FontConfig;
   legendFont: FontConfig;
@@ -87,6 +89,9 @@ export interface ChartCustomization {
   showAxisLabels: boolean;
   xAxisLabel: string;
   yAxisLabel: string;
+  yAxisMin: number | null;
+  yAxisMax: number | null;
+  yAxisStepSize: number | null;
   paddingTop: number;
   paddingBottom: number;
   paddingLeft: number;

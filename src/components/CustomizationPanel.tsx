@@ -140,6 +140,7 @@ interface CustomizationPanelProps {
   onUpdateDatasetConfig: (index: number, config: Partial<ChartCustomization['datasetConfigs'][0]>) => void;
   onApplyPalette: (paletteId: PaletteId) => void;
   onExport: () => Promise<void>;
+  onExportImage: (format: 'png' | 'jpeg') => void;
 }
 
 export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
@@ -150,6 +151,7 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
   onUpdateDatasetConfig,
   onApplyPalette,
   onExport,
+  onExportImage,
 }) => {
   const isCartesian = !['pie', 'doughnut', 'radar', 'polarArea'].includes(chartType);
   const isBar = chartType === 'bar';
@@ -161,8 +163,28 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
   return (
     <div className="h-full overflow-y-auto">
       {/* Export */}
-      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+      <div className="p-4 border-b border-gray-200 dark:border-gray-700 space-y-2">
         <ExportButton onExport={onExport} />
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={() => onExportImage('png')}
+            className="flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            PNG
+          </button>
+          <button
+            onClick={() => onExportImage('jpeg')}
+            className="flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            JPEG
+          </button>
+        </div>
       </div>
 
       {/* General */}
@@ -174,6 +196,15 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
             onChange={e => onUpdateCustomization('title', e.target.value)}
             className="w-full mt-1 text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
             placeholder="Enter chart title..."
+          />
+        </div>
+        <div>
+          <label className="text-xs text-gray-500 dark:text-gray-400">Subtitle</label>
+          <input
+            value={customization.subtitle}
+            onChange={e => onUpdateCustomization('subtitle', e.target.value)}
+            className="w-full mt-1 text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+            placeholder="Enter subtitle..."
           />
         </div>
         <Slider
@@ -292,6 +323,14 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
         />
         <div className="border-t border-gray-100 dark:border-gray-700 pt-3">
           <FontSection
+            title="Subtitle"
+            font={customization.subtitleFont}
+            onChange={(_, v) => onUpdateCustomization('subtitleFont', v as ChartCustomization['subtitleFont'])}
+            fontKey="subtitleFont"
+          />
+        </div>
+        <div className="border-t border-gray-100 dark:border-gray-700 pt-3">
+          <FontSection
             title="Axis Labels"
             font={customization.axisLabelFont}
             onChange={(_, v) => onUpdateCustomization('axisLabelFont', v as ChartCustomization['axisLabelFont'])}
@@ -349,6 +388,40 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
               </div>
             </>
           )}
+          <div className="grid grid-cols-3 gap-2">
+            <div>
+              <label className="text-xs text-gray-500 dark:text-gray-400">Y Min</label>
+              <input
+                type="number"
+                value={customization.yAxisMin ?? ''}
+                onChange={e => onUpdateCustomization('yAxisMin', e.target.value === '' ? null : Number(e.target.value))}
+                className="w-full mt-1 text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                placeholder="Auto"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 dark:text-gray-400">Y Max</label>
+              <input
+                type="number"
+                value={customization.yAxisMax ?? ''}
+                onChange={e => onUpdateCustomization('yAxisMax', e.target.value === '' ? null : Number(e.target.value))}
+                className="w-full mt-1 text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                placeholder="Auto"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 dark:text-gray-400">Y Step</label>
+              <input
+                type="number"
+                value={customization.yAxisStepSize ?? ''}
+                onChange={e => onUpdateCustomization('yAxisStepSize', e.target.value === '' ? null : Number(e.target.value))}
+                className="w-full mt-1 text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                placeholder="Auto"
+                min={0.1}
+                step={0.1}
+              />
+            </div>
+          </div>
         </Section>
       )}
 

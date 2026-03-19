@@ -19,10 +19,11 @@ import {
   PolarAreaController,
   ChartOptions,
   ChartData as ChartJSData,
+  Plugin,
 } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 import { Bar, Line, Pie, Doughnut, Scatter, Radar, PolarArea } from 'react-chartjs-2';
-import { ChartType, ChartData, ChartCustomization } from '../types/chart';
+import { ChartType, ChartData, ChartCustomization, BarShape } from '../types/chart';
 import { SEMANTIC_COLORS } from '../data/palettes';
 import { formatNumber } from '../utils/numberFormat';
 import { isProportionChart } from '../utils/chartHelpers';
@@ -76,6 +77,306 @@ function needsWhiteText(hexColor: string): boolean {
   const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
   return luminance < 0.5;
 }
+
+// ── Custom bar shape plugin ───────────────────────────────────────────────────
+// We store the active shape config in a module-level object so the globally
+// registered plugin can read it without any React lifecycle ordering issues.
+// Using a globally registered plugin ensures it fires for every chart update,
+// regardless of when react-chartjs-2 calls chart.update() internally.
+const barShapePluginState: { shape: BarShape; horizontal: boolean } = {
+  shape: 'rectangle',
+  horizontal: false,
+};
+
+/** Fallback bar fill color when a dataset's backgroundColor is not a plain string */
+const DEFAULT_BAR_COLOR = DEFAULT_COLORS[0];
+
+/** Draw a custom bar shape path on a canvas 2D context */
+function drawBarShape(
+  ctx: CanvasRenderingContext2D,
+  shape: BarShape,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  horizontal: boolean,
+): void {
+  ctx.beginPath();
+  switch (shape) {
+    case 'rounded-pill': {
+      const r = Math.min(Math.abs(w), Math.abs(h)) / 2;
+      if (horizontal) {
+        // Pill grows left or right: round both ends
+        const left = Math.min(x, x + w);
+        const top = y - Math.abs(h) / 2;
+        const width = Math.abs(w);
+        const height = Math.abs(h);
+        // Arc-based rounded rect for broad browser compatibility
+        ctx.moveTo(left + r, top);
+        ctx.lineTo(left + width - r, top);
+        ctx.arcTo(left + width, top, left + width, top + r, r);
+        ctx.lineTo(left + width, top + height - r);
+        ctx.arcTo(left + width, top + height, left + width - r, top + height, r);
+        ctx.lineTo(left + r, top + height);
+        ctx.arcTo(left, top + height, left, top + height - r, r);
+        ctx.lineTo(left, top + r);
+        ctx.arcTo(left, top, left + r, top, r);
+      } else {
+        // Pill grows up or down: round both ends
+        const left = x - Math.abs(w) / 2;
+        const top = Math.min(y, y + h);
+        const width = Math.abs(w);
+        const height = Math.abs(h);
+        ctx.moveTo(left + r, top);
+        ctx.lineTo(left + width - r, top);
+        ctx.arcTo(left + width, top, left + width, top + r, r);
+        ctx.lineTo(left + width, top + height - r);
+        ctx.arcTo(left + width, top + height, left + width - r, top + height, r);
+        ctx.lineTo(left + r, top + height);
+        ctx.arcTo(left, top + height, left, top + height - r, r);
+        ctx.lineTo(left, top + r);
+        ctx.arcTo(left, top, left + r, top, r);
+      }
+      ctx.closePath();
+      break;
+    }
+    case 'chevron': {
+      // Arrow/chevron: rectangle body with pointed leading edge, notched trailing edge
+      const ARROW_RATIO = 0.2; // portion of the bar length used for the point
+      if (horizontal) {
+        // Horizontal: bar goes left→right (or right→left)
+        const left = Math.min(x, x + w);
+        const right = Math.max(x, x + w);
+        const top = y - Math.abs(h) / 2;
+        const bottom = y + Math.abs(h) / 2;
+        const mid = (top + bottom) / 2;
+        const arrowSize = Math.abs(h) * ARROW_RATIO;
+        const growing = w >= 0; // true when bar extends right
+        if (growing) {
+          // Point on the right, notch on the left
+          ctx.moveTo(left + arrowSize, top);
+          ctx.lineTo(right - arrowSize, top);
+          ctx.lineTo(right, mid);
+          ctx.lineTo(right - arrowSize, bottom);
+          ctx.lineTo(left + arrowSize, bottom);
+          ctx.lineTo(left, mid);
+        } else {
+          // Point on the left, notch on the right
+          ctx.moveTo(right - arrowSize, top);
+          ctx.lineTo(left + arrowSize, top);
+          ctx.lineTo(left, mid);
+          ctx.lineTo(left + arrowSize, bottom);
+          ctx.lineTo(right - arrowSize, bottom);
+          ctx.lineTo(right, mid);
+        }
+      } else {
+        // Vertical: bar goes up (negative h in canvas coords)
+        const left = x - Math.abs(w) / 2;
+        const right = x + Math.abs(w) / 2;
+        const top = Math.min(y, y + h);
+        const bottom = Math.max(y, y + h);
+        const mid = (left + right) / 2;
+        const arrowSize = Math.abs(w) * ARROW_RATIO;
+        const growing = h <= 0; // bar grows upward (y decreases)
+        if (growing) {
+          // Point on the top, notch on the bottom
+          ctx.moveTo(left, bottom - arrowSize);
+          ctx.lineTo(mid, top);
+          ctx.lineTo(right, bottom - arrowSize);
+          ctx.lineTo(right, bottom);
+          ctx.lineTo(mid + arrowSize, bottom);
+          // Notch
+          ctx.lineTo(mid, bottom - arrowSize);
+          ctx.lineTo(mid - arrowSize, bottom);
+          ctx.lineTo(left, bottom);
+        } else {
+          // Point on the bottom, notch on the top
+          ctx.moveTo(left, top + arrowSize);
+          ctx.lineTo(mid, bottom);
+          ctx.lineTo(right, top + arrowSize);
+          ctx.lineTo(right, top);
+          ctx.lineTo(mid + arrowSize, top);
+          ctx.lineTo(mid, top + arrowSize);
+          ctx.lineTo(mid - arrowSize, top);
+          ctx.lineTo(left, top);
+        }
+      }
+      ctx.closePath();
+      break;
+    }
+    case 'hexagon': {
+      if (horizontal) {
+        const left = Math.min(x, x + w);
+        const right = Math.max(x, x + w);
+        const top = y - Math.abs(h) / 2;
+        const bottom = y + Math.abs(h) / 2;
+        const midY = (top + bottom) / 2;
+        const indent = Math.abs(h) * 0.25;
+        ctx.moveTo(left + indent, top);
+        ctx.lineTo(right - indent, top);
+        ctx.lineTo(right, midY);
+        ctx.lineTo(right - indent, bottom);
+        ctx.lineTo(left + indent, bottom);
+        ctx.lineTo(left, midY);
+      } else {
+        const left = x - Math.abs(w) / 2;
+        const right = x + Math.abs(w) / 2;
+        const top = Math.min(y, y + h);
+        const bottom = Math.max(y, y + h);
+        const midX = (left + right) / 2;
+        const indent = Math.abs(w) * 0.25;
+        ctx.moveTo(midX, top);
+        ctx.lineTo(right, top + indent);
+        ctx.lineTo(right, bottom - indent);
+        ctx.lineTo(midX, bottom);
+        ctx.lineTo(left, bottom - indent);
+        ctx.lineTo(left, top + indent);
+      }
+      ctx.closePath();
+      break;
+    }
+    case 'diamond': {
+      if (horizontal) {
+        const left = Math.min(x, x + w);
+        const right = Math.max(x, x + w);
+        const midX = (left + right) / 2;
+        const midY = y;
+        const top = y - Math.abs(h) / 2;
+        const bottom = y + Math.abs(h) / 2;
+        ctx.moveTo(left, midY);
+        ctx.lineTo(midX, top);
+        ctx.lineTo(right, midY);
+        ctx.lineTo(midX, bottom);
+      } else {
+        const left = x - Math.abs(w) / 2;
+        const right = x + Math.abs(w) / 2;
+        const top = Math.min(y, y + h);
+        const bottom = Math.max(y, y + h);
+        const midX = (left + right) / 2;
+        const midY = (top + bottom) / 2;
+        ctx.moveTo(midX, top);
+        ctx.lineTo(right, midY);
+        ctx.lineTo(midX, bottom);
+        ctx.lineTo(left, midY);
+      }
+      ctx.closePath();
+      break;
+    }
+    case 'triangle': {
+      if (horizontal) {
+        const left = Math.min(x, x + w);
+        const right = Math.max(x, x + w);
+        const top = y - Math.abs(h) / 2;
+        const bottom = y + Math.abs(h) / 2;
+        const growing = w >= 0;
+        if (growing) {
+          ctx.moveTo(left, top);
+          ctx.lineTo(right, y);
+          ctx.lineTo(left, bottom);
+        } else {
+          ctx.moveTo(right, top);
+          ctx.lineTo(left, y);
+          ctx.lineTo(right, bottom);
+        }
+      } else {
+        const left = x - Math.abs(w) / 2;
+        const right = x + Math.abs(w) / 2;
+        const top = Math.min(y, y + h);
+        const bottom = Math.max(y, y + h);
+        const midX = (left + right) / 2;
+        const growing = h <= 0; // growing upward
+        if (growing) {
+          ctx.moveTo(left, bottom);
+          ctx.lineTo(midX, top);
+          ctx.lineTo(right, bottom);
+        } else {
+          ctx.moveTo(left, top);
+          ctx.lineTo(midX, bottom);
+          ctx.lineTo(right, top);
+        }
+      }
+      ctx.closePath();
+      break;
+    }
+    default:
+      break;
+  }
+}
+
+/**
+ * Globally registered Chart.js plugin that replaces bar elements with custom shapes.
+ *
+ * Architectural note: The plugin reads from `barShapePluginState` (a module-level
+ * object) instead of using closures or per-chart plugin instances. This sidesteps a
+ * limitation in react-chartjs-2 where the `plugins` prop is only applied at chart
+ * creation time and is not updated on subsequent re-renders. By registering the plugin
+ * globally and syncing state through a mutable object that is updated synchronously
+ * during React render, we guarantee the plugin always reflects the latest shape
+ * selection without needing to destroy/recreate the chart instance.
+ */
+const customBarShapePlugin: Plugin = {
+  id: 'customBarShape',
+  afterDatasetsDraw(chart) {
+    const { shape, horizontal } = barShapePluginState;
+    if (shape === 'rectangle') return; // nothing to override
+
+    const ctx = chart.ctx;
+    chart.data.datasets.forEach((dataset, datasetIndex) => {
+      const meta = chart.getDatasetMeta(datasetIndex);
+      if (meta.type !== 'bar') return;
+
+      meta.data.forEach((element, index) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const el = element as any;
+        const props = el.getProps(['x', 'y', 'base', 'width', 'height'], true);
+
+        let barX: number, barY: number, barW: number, barH: number;
+        if (horizontal) {
+          // el.x = value end, el.base = baseline, el.y = center, el.height = thickness
+          barX = props.base;
+          barY = props.y;
+          barW = props.x - props.base;
+          barH = Math.abs(props.height ?? el.height ?? 0);
+        } else {
+          // el.x = center, el.base = baseline, el.y = value top, el.width = thickness
+          barX = props.x;
+          barY = props.base;
+          barW = Math.abs(props.width ?? el.width ?? 0);
+          barH = props.y - props.base;
+        }
+
+        if (barW === 0 || barH === 0) return;
+
+        // Get color from dataset
+        const bgColors = dataset.backgroundColor;
+        const color = Array.isArray(bgColors) ? bgColors[index] : bgColors;
+
+        ctx.save();
+
+        // Clear the original bar area
+        if (horizontal) {
+          const left = Math.min(barX, barX + barW);
+          const top = barY - barH / 2;
+          ctx.clearRect(left - 1, top - 1, Math.abs(barW) + 2, barH + 2);
+        } else {
+          const left = barX - barW / 2;
+          const top = Math.min(barY, barY + barH);
+          ctx.clearRect(left - 1, top - 1, barW + 2, Math.abs(barH) + 2);
+        }
+
+        // Draw the custom shape
+        ctx.fillStyle = typeof color === 'string' ? color : DEFAULT_BAR_COLOR;
+        drawBarShape(ctx, shape, barX, barY, barW, barH, horizontal);
+        ctx.fill();
+
+        ctx.restore();
+      });
+    });
+  },
+};
+
+// Register globally once so it fires on every chart.update() call
+ChartJS.register(customBarShapePlugin);
 
 export const ChartPreview: React.FC<ChartPreviewProps> = ({
   chartType,
@@ -459,6 +760,13 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
 
   const data = getChartJSData();
   const options = getChartOptions();
+
+  // Update the module-level state that the globally registered plugin reads.
+  // This happens synchronously during render, before Chart.js draws.
+  const barShape = customization.barConfig?.shape ?? 'rectangle';
+  const isBarOrCombo = chartType === 'bar' || chartType === 'combo';
+  barShapePluginState.shape = isBarOrCombo ? barShape : 'rectangle';
+  barShapePluginState.horizontal = customization.barConfig.horizontal;
 
   useEffect(() => {
     document.fonts.ready.then(() => {

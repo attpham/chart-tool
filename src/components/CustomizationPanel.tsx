@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { ChartCustomization, ChartType, FontFamily, PointStyle, LegendPosition, PaletteId, DataLabelFormat, DataLabelPosition, NumberFormatType, RadarConfig, ComboConfig, BarShape, PictorialShape } from '../types/chart';
 import { PALETTES } from '../data/palettes';
 import { ColorPicker } from './ColorPicker';
@@ -44,7 +44,7 @@ interface SliderProps {
   unit?: string;
 }
 
-const Slider: React.FC<SliderProps> = ({ label, value, min, max, step = 1, onChange, unit = '' }) => (
+const Slider: React.FC<SliderProps & { onBeforeChange?: () => void }> = ({ label, value, min, max, step = 1, onChange, unit = '', onBeforeChange }) => (
   <div>
     <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400 mb-1">
       <span>{label}</span>
@@ -56,6 +56,7 @@ const Slider: React.FC<SliderProps> = ({ label, value, min, max, step = 1, onCha
       max={max}
       step={step}
       value={value}
+      onPointerDown={onBeforeChange}
       onChange={e => onChange(Number(e.target.value))}
       className="w-full h-1.5 rounded-full appearance-none bg-gray-200 dark:bg-gray-600 accent-accent"
     />
@@ -141,6 +142,7 @@ interface CustomizationPanelProps {
   onApplyPalette: (paletteId: PaletteId) => void;
   onExport: () => Promise<void>;
   onExportImage: (format: 'png' | 'jpeg') => void;
+  onBeforeEdit?: () => void;
 }
 
 export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
@@ -152,6 +154,7 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
   onApplyPalette,
   onExport,
   onExportImage,
+  onBeforeEdit,
 }) => {
   const isCartesian = !['pie', 'doughnut', 'radar', 'polarArea'].includes(chartType);
   const isBar = chartType === 'bar';
@@ -159,6 +162,20 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
   const isLineOrArea = chartType === 'line' || chartType === 'area';
   const isRadar = chartType === 'radar';
   const isProportion = isProportionChart(chartType);
+
+  // Wrapper for discrete controls (toggles, selects, color pickers) so each
+  // interaction creates exactly one undo step via onBeforeEdit.
+  // Note: sliders use onBeforeChange (on pointerdown) instead, which captures
+  // the pre-drag state before the drag session begins.
+  const beforeUpdate = useCallback(<K extends keyof ChartCustomization>(key: K, value: ChartCustomization[K]) => {
+    onBeforeEdit?.();
+    onUpdateCustomization(key, value);
+  }, [onBeforeEdit, onUpdateCustomization]);
+
+  const beforeUpdateDatasetConfig = useCallback((index: number, config: Partial<ChartCustomization['datasetConfigs'][0]>) => {
+    onBeforeEdit?.();
+    onUpdateDatasetConfig(index, config);
+  }, [onBeforeEdit, onUpdateDatasetConfig]);
 
   return (
     <div className="h-full overflow-y-auto">
@@ -206,6 +223,7 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
           <input
             value={customization.title}
             onChange={e => onUpdateCustomization('title', e.target.value)}
+            onFocus={onBeforeEdit}
             className="w-full mt-1 text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
             placeholder="Enter chart title..."
           />
@@ -215,6 +233,7 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
           <input
             value={customization.subtitle}
             onChange={e => onUpdateCustomization('subtitle', e.target.value)}
+            onFocus={onBeforeEdit}
             className="w-full mt-1 text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
             placeholder="Enter subtitle..."
           />
@@ -226,23 +245,24 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
           max={4}
           step={0.1}
           onChange={v => onUpdateCustomization('aspectRatio', v)}
+          onBeforeChange={onBeforeEdit}
         />
         <Toggle
           label="Enable Animations"
           checked={customization.animationEnabled}
-          onChange={v => onUpdateCustomization('animationEnabled', v)}
+          onChange={v => beforeUpdate('animationEnabled', v)}
         />
         <Toggle
           label="Show Legend"
           checked={customization.showLegend}
-          onChange={v => onUpdateCustomization('showLegend', v)}
+          onChange={v => beforeUpdate('showLegend', v)}
         />
         {customization.showLegend && (
           <div>
             <label className="text-xs text-gray-500 dark:text-gray-400">Legend Position</label>
             <select
               value={customization.legendPosition}
-              onChange={e => onUpdateCustomization('legendPosition', e.target.value as LegendPosition)}
+              onChange={e => beforeUpdate('legendPosition', e.target.value as LegendPosition)}
               className="w-full mt-1 text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
             >
               <option value="top">Top</option>
@@ -293,7 +313,7 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
                 onChange={v => {
                   const updated = [...(customization.sliceColors ?? [])];
                   updated[i] = v;
-                  onUpdateCustomization('sliceColors', updated);
+                  beforeUpdate('sliceColors', updated);
                 }}
               />
             </div>
@@ -305,12 +325,12 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
               <ColorPicker
                 label="Background"
                 value={typeof cfg.backgroundColor === 'string' ? cfg.backgroundColor : cfg.backgroundColor[0]}
-                onChange={v => onUpdateDatasetConfig(i, { backgroundColor: v })}
+                onChange={v => beforeUpdateDatasetConfig(i, { backgroundColor: v })}
               />
               <ColorPicker
                 label="Border"
                 value={typeof cfg.borderColor === 'string' ? cfg.borderColor : cfg.borderColor[0]}
-                onChange={v => onUpdateDatasetConfig(i, { borderColor: v })}
+                onChange={v => beforeUpdateDatasetConfig(i, { borderColor: v })}
               />
               <Slider
                 label="Border Width"
@@ -318,6 +338,7 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
                 min={0}
                 max={10}
                 onChange={v => onUpdateDatasetConfig(i, { borderWidth: v })}
+                onBeforeChange={onBeforeEdit}
                 unit="px"
               />
             </div>
@@ -330,14 +351,14 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
         <FontSection
           title="Title"
           font={customization.titleFont}
-          onChange={(_, v) => onUpdateCustomization('titleFont', v as ChartCustomization['titleFont'])}
+          onChange={(_, v) => beforeUpdate('titleFont', v as ChartCustomization['titleFont'])}
           fontKey="titleFont"
         />
         <div className="border-t border-gray-100 dark:border-gray-700 pt-3">
           <FontSection
             title="Subtitle"
             font={customization.subtitleFont}
-            onChange={(_, v) => onUpdateCustomization('subtitleFont', v as ChartCustomization['subtitleFont'])}
+            onChange={(_, v) => beforeUpdate('subtitleFont', v as ChartCustomization['subtitleFont'])}
             fontKey="subtitleFont"
           />
         </div>
@@ -345,7 +366,7 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
           <FontSection
             title="Axis Labels"
             font={customization.axisLabelFont}
-            onChange={(_, v) => onUpdateCustomization('axisLabelFont', v as ChartCustomization['axisLabelFont'])}
+            onChange={(_, v) => beforeUpdate('axisLabelFont', v as ChartCustomization['axisLabelFont'])}
             fontKey="axisLabelFont"
           />
         </div>
@@ -353,7 +374,7 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
           <FontSection
             title="Tick Labels"
             font={customization.tickLabelFont}
-            onChange={(_, v) => onUpdateCustomization('tickLabelFont', v as ChartCustomization['tickLabelFont'])}
+            onChange={(_, v) => beforeUpdate('tickLabelFont', v as ChartCustomization['tickLabelFont'])}
             fontKey="tickLabelFont"
           />
         </div>
@@ -361,7 +382,7 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
           <FontSection
             title="Legend"
             font={customization.legendFont}
-            onChange={(_, v) => onUpdateCustomization('legendFont', v as ChartCustomization['legendFont'])}
+            onChange={(_, v) => beforeUpdate('legendFont', v as ChartCustomization['legendFont'])}
             fontKey="legendFont"
           />
         </div>
@@ -373,12 +394,12 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
           <Toggle
             label="Show Gridlines"
             checked={customization.showGridlines}
-            onChange={v => onUpdateCustomization('showGridlines', v)}
+            onChange={v => beforeUpdate('showGridlines', v)}
           />
           <Toggle
             label="Show Axis Labels"
             checked={customization.showAxisLabels}
-            onChange={v => onUpdateCustomization('showAxisLabels', v)}
+            onChange={v => beforeUpdate('showAxisLabels', v)}
           />
           {customization.showAxisLabels && (
             <>
@@ -387,6 +408,7 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
                 <input
                   value={customization.xAxisLabel}
                   onChange={e => onUpdateCustomization('xAxisLabel', e.target.value)}
+                  onFocus={onBeforeEdit}
                   className="w-full mt-1 text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
                 />
               </div>
@@ -395,6 +417,7 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
                 <input
                   value={customization.yAxisLabel}
                   onChange={e => onUpdateCustomization('yAxisLabel', e.target.value)}
+                  onFocus={onBeforeEdit}
                   className="w-full mt-1 text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
                 />
               </div>
@@ -407,6 +430,7 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
                 type="number"
                 value={customization.yAxisMin ?? ''}
                 onChange={e => onUpdateCustomization('yAxisMin', e.target.value === '' ? null : Number(e.target.value))}
+                onFocus={onBeforeEdit}
                 className="w-full mt-1 text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
                 placeholder="Auto"
               />
@@ -417,6 +441,7 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
                 type="number"
                 value={customization.yAxisMax ?? ''}
                 onChange={e => onUpdateCustomization('yAxisMax', e.target.value === '' ? null : Number(e.target.value))}
+                onFocus={onBeforeEdit}
                 className="w-full mt-1 text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
                 placeholder="Auto"
               />
@@ -427,6 +452,7 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
                 type="number"
                 value={customization.yAxisStepSize ?? ''}
                 onChange={e => onUpdateCustomization('yAxisStepSize', e.target.value === '' ? null : Number(e.target.value))}
+                onFocus={onBeforeEdit}
                 className="w-full mt-1 text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
                 placeholder="Auto"
                 min={0.1}
@@ -446,38 +472,46 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
             min={0}
             max={30}
             onChange={v => onUpdateCustomization('barConfig', { ...customization.barConfig, borderRadius: v })}
+            onBeforeChange={onBeforeEdit}
             unit="px"
           />
-          <Toggle
-            label="Grouped (vs Stacked)"
-            checked={customization.barConfig.grouped}
-            onChange={v => onUpdateCustomization('barConfig', { ...customization.barConfig, grouped: v, ...(v ? { stacked100: false } : {}) })}
-          />
-          {(isBar || isCombo) && !customization.barConfig.grouped && (
-            <div className="flex items-center justify-between">
-              <label className="text-xs text-gray-500 dark:text-gray-400">100% Stacked</label>
-              <input
-                type="checkbox"
-                checked={customization.barConfig.stacked100}
-                onChange={e => onUpdateCustomization('barConfig', {
+          <div>
+            <label className="text-xs text-gray-500 dark:text-gray-400">Bar Mode</label>
+            <select
+              value={
+                customization.barConfig.grouped
+                  ? 'grouped'
+                  : customization.barConfig.stacked100
+                    ? 'stacked100'
+                    : 'stacked'
+              }
+              onChange={e => {
+                const mode = e.target.value;
+                beforeUpdate('barConfig', {
                   ...customization.barConfig,
-                  stacked100: e.target.checked,
-                })}
-              />
-            </div>
-          )}
+                  grouped: mode === 'grouped',
+                  stacked100: mode === 'stacked100',
+                });
+              }}
+              className="w-full mt-1 text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+            >
+              <option value="grouped">Grouped</option>
+              <option value="stacked">Stacked</option>
+              <option value="stacked100">100% Stacked</option>
+            </select>
+          </div>
           {isBar && (
             <Toggle
               label="Horizontal"
               checked={customization.barConfig.horizontal}
-              onChange={v => onUpdateCustomization('barConfig', { ...customization.barConfig, horizontal: v })}
+              onChange={v => beforeUpdate('barConfig', { ...customization.barConfig, horizontal: v })}
             />
           )}
           <div>
             <label className="text-xs text-gray-500 dark:text-gray-400">Bar Shape</label>
             <select
               value={customization.barConfig.shape ?? 'rectangle'}
-              onChange={e => onUpdateCustomization('barConfig', { ...customization.barConfig, shape: e.target.value as BarShape })}
+              onChange={e => beforeUpdate('barConfig', { ...customization.barConfig, shape: e.target.value as BarShape })}
               className="w-full mt-1 text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
             >
               <option value="rectangle">Rectangle</option>
@@ -498,7 +532,7 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
             <label className="text-xs text-gray-500 dark:text-gray-400">Line Dataset</label>
             <select
               value={customization.comboConfig.lineDatasetIndex}
-              onChange={e => onUpdateCustomization('comboConfig', { ...customization.comboConfig, lineDatasetIndex: Number(e.target.value) } as ComboConfig)}
+              onChange={e => beforeUpdate('comboConfig', { ...customization.comboConfig, lineDatasetIndex: Number(e.target.value) } as ComboConfig)}
               className="w-full mt-1 text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
             >
               <option value={-1}>Last Dataset</option>
@@ -514,6 +548,7 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
             max={1}
             step={0.05}
             onChange={v => onUpdateCustomization('comboConfig', { ...customization.comboConfig, lineTension: v } as ComboConfig)}
+            onBeforeChange={onBeforeEdit}
           />
           <Slider
             label="Point Radius"
@@ -521,12 +556,13 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
             min={0}
             max={20}
             onChange={v => onUpdateCustomization('comboConfig', { ...customization.comboConfig, linePointRadius: v } as ComboConfig)}
+            onBeforeChange={onBeforeEdit}
             unit="px"
           />
           <Toggle
             label="Fill Under Line"
             checked={customization.comboConfig.lineFill}
-            onChange={v => onUpdateCustomization('comboConfig', { ...customization.comboConfig, lineFill: v } as ComboConfig)}
+            onChange={v => beforeUpdate('comboConfig', { ...customization.comboConfig, lineFill: v } as ComboConfig)}
           />
         </Section>
       )}
@@ -537,7 +573,7 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
           <Toggle
             label="Fill"
             checked={customization.radarConfig.fill}
-            onChange={v => onUpdateCustomization('radarConfig', { ...customization.radarConfig, fill: v } as RadarConfig)}
+            onChange={v => beforeUpdate('radarConfig', { ...customization.radarConfig, fill: v } as RadarConfig)}
           />
           <Slider
             label="Line Tension"
@@ -546,6 +582,7 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
             max={1}
             step={0.05}
             onChange={v => onUpdateCustomization('radarConfig', { ...customization.radarConfig, tension: v } as RadarConfig)}
+            onBeforeChange={onBeforeEdit}
           />
           <Slider
             label="Point Radius"
@@ -553,6 +590,7 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
             min={0}
             max={20}
             onChange={v => onUpdateCustomization('radarConfig', { ...customization.radarConfig, pointRadius: v } as RadarConfig)}
+            onBeforeChange={onBeforeEdit}
             unit="px"
           />
         </Section>
@@ -568,12 +606,13 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
             max={1}
             step={0.05}
             onChange={v => onUpdateCustomization('lineConfig', { ...customization.lineConfig, tension: v })}
+            onBeforeChange={onBeforeEdit}
           />
           <div>
             <label className="text-xs text-gray-500 dark:text-gray-400">Point Style</label>
             <select
               value={customization.lineConfig.pointStyle}
-              onChange={e => onUpdateCustomization('lineConfig', { ...customization.lineConfig, pointStyle: e.target.value as PointStyle })}
+              onChange={e => beforeUpdate('lineConfig', { ...customization.lineConfig, pointStyle: e.target.value as PointStyle })}
               className="w-full mt-1 text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
             >
               {(['circle', 'cross', 'crossRot', 'dash', 'line', 'rect', 'rectRounded', 'rectRot', 'star', 'triangle'] as PointStyle[]).map(s => (
@@ -587,12 +626,13 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
             min={0}
             max={20}
             onChange={v => onUpdateCustomization('lineConfig', { ...customization.lineConfig, pointRadius: v })}
+            onBeforeChange={onBeforeEdit}
             unit="px"
           />
           <Toggle
             label="Fill Area"
             checked={customization.lineConfig.fill}
-            onChange={v => onUpdateCustomization('lineConfig', { ...customization.lineConfig, fill: v })}
+            onChange={v => beforeUpdate('lineConfig', { ...customization.lineConfig, fill: v })}
           />
         </Section>
       )}
@@ -602,7 +642,7 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
         <Toggle
           label="Show Data Labels"
           checked={customization.showDataLabels}
-          onChange={v => onUpdateCustomization('showDataLabels', v)}
+          onChange={v => beforeUpdate('showDataLabels', v)}
         />
         {customization.showDataLabels && (
           <>
@@ -610,7 +650,7 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
               <label className="text-xs text-gray-500 dark:text-gray-400">Position</label>
               <select
                 value={customization.dataLabelPosition}
-                onChange={e => onUpdateCustomization('dataLabelPosition', e.target.value as DataLabelPosition)}
+                onChange={e => beforeUpdate('dataLabelPosition', e.target.value as DataLabelPosition)}
                 className="w-full mt-1 text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
               >
                 <option value="end">End (Outside)</option>
@@ -624,7 +664,7 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
                 <label className="text-xs text-gray-500 dark:text-gray-400">Format</label>
                 <select
                   value={customization.dataLabelFormat}
-                  onChange={e => onUpdateCustomization('dataLabelFormat', e.target.value as DataLabelFormat)}
+                  onChange={e => beforeUpdate('dataLabelFormat', e.target.value as DataLabelFormat)}
                   className="w-full mt-1 text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
                 >
                   <option value="value">Value</option>
@@ -639,6 +679,7 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
                 type="number"
                 value={customization.numberFormat.decimalPlaces}
                 onChange={e => onUpdateCustomization('numberFormat', { ...customization.numberFormat, decimalPlaces: Number(e.target.value) })}
+                onFocus={onBeforeEdit}
                 min={0}
                 max={6}
                 className="w-full mt-1 text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
@@ -648,7 +689,7 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
               <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Label Font</p>
               <select
                 value={customization.dataLabelFont.family}
-                onChange={e => onUpdateCustomization('dataLabelFont', { ...customization.dataLabelFont, family: e.target.value as FontFamily })}
+                onChange={e => beforeUpdate('dataLabelFont', { ...customization.dataLabelFont, family: e.target.value as FontFamily })}
                 className="w-full text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
               >
                 {(['Mona Sans', 'Mona Sans Display', 'Mona Sans Mono', 'Inter', 'Roboto', 'Montserrat', 'Lato', 'Georgia'] as FontFamily[]).map(f => (
@@ -662,6 +703,7 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
                     type="number"
                     value={customization.dataLabelFont.size}
                     onChange={e => onUpdateCustomization('dataLabelFont', { ...customization.dataLabelFont, size: Number(e.target.value) })}
+                    onFocus={onBeforeEdit}
                     min={8}
                     max={32}
                     className="w-full text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
@@ -671,7 +713,7 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
                   <label className="text-xs text-gray-500 dark:text-gray-400">Weight</label>
                   <select
                     value={customization.dataLabelFont.weight}
-                    onChange={e => onUpdateCustomization('dataLabelFont', { ...customization.dataLabelFont, weight: e.target.value as 'bold' | 'normal' })}
+                    onChange={e => beforeUpdate('dataLabelFont', { ...customization.dataLabelFont, weight: e.target.value as 'bold' | 'normal' })}
                     className="w-full text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
                   >
                     <option value="normal">Normal</option>
@@ -682,7 +724,7 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
               <ColorPicker
                 label="Color"
                 value={customization.dataLabelFont.color}
-                onChange={v => onUpdateCustomization('dataLabelFont', { ...customization.dataLabelFont, color: v })}
+                onChange={v => beforeUpdate('dataLabelFont', { ...customization.dataLabelFont, color: v })}
               />
             </div>
           </>
@@ -695,7 +737,7 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
           <label className="text-xs text-gray-500 dark:text-gray-400">Format Type</label>
           <select
             value={customization.numberFormat.type}
-            onChange={e => onUpdateCustomization('numberFormat', { ...customization.numberFormat, type: e.target.value as NumberFormatType })}
+            onChange={e => beforeUpdate('numberFormat', { ...customization.numberFormat, type: e.target.value as NumberFormatType })}
             className="w-full mt-1 text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
           >
             <option value="raw">Raw Number</option>
@@ -714,6 +756,7 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
                 <input
                   value={customization.numberFormat.currencySymbol}
                   onChange={e => onUpdateCustomization('numberFormat', { ...customization.numberFormat, currencySymbol: e.target.value })}
+                  onFocus={onBeforeEdit}
                   className="w-full mt-1 text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
                   placeholder="$"
                 />
@@ -722,7 +765,7 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
                 <label className="text-xs text-gray-500 dark:text-gray-400">Position</label>
                 <select
                   value={customization.numberFormat.currencyPosition}
-                  onChange={e => onUpdateCustomization('numberFormat', { ...customization.numberFormat, currencyPosition: e.target.value as 'prefix' | 'suffix' })}
+                  onChange={e => beforeUpdate('numberFormat', { ...customization.numberFormat, currencyPosition: e.target.value as 'prefix' | 'suffix' })}
                   className="w-full mt-1 text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
                 >
                   <option value="prefix">Prefix</option>
@@ -740,6 +783,7 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
               <input
                 value={customization.numberFormat.prefix}
                 onChange={e => onUpdateCustomization('numberFormat', { ...customization.numberFormat, prefix: e.target.value })}
+                onFocus={onBeforeEdit}
                 className="w-full mt-1 text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
                 placeholder="e.g. €"
               />
@@ -749,6 +793,7 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
               <input
                 value={customization.numberFormat.suffix}
                 onChange={e => onUpdateCustomization('numberFormat', { ...customization.numberFormat, suffix: e.target.value })}
+                onFocus={onBeforeEdit}
                 className="w-full mt-1 text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
                 placeholder="e.g.  units"
               />
@@ -762,12 +807,13 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
           min={0}
           max={6}
           onChange={v => onUpdateCustomization('numberFormat', { ...customization.numberFormat, decimalPlaces: v })}
+          onBeforeChange={onBeforeEdit}
         />
 
         <Toggle
           label="Thousands Separator"
           checked={customization.numberFormat.thousandsSeparator}
-          onChange={v => onUpdateCustomization('numberFormat', { ...customization.numberFormat, thousandsSeparator: v })}
+          onChange={v => beforeUpdate('numberFormat', { ...customization.numberFormat, thousandsSeparator: v })}
         />
 
         {/* Live preview */}
@@ -791,6 +837,7 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
           min={0}
           max={100}
           onChange={v => onUpdateCustomization('paddingTop', v)}
+          onBeforeChange={onBeforeEdit}
           unit="px"
         />
         <Slider
@@ -799,6 +846,7 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
           min={0}
           max={100}
           onChange={v => onUpdateCustomization('paddingBottom', v)}
+          onBeforeChange={onBeforeEdit}
           unit="px"
         />
         <Slider
@@ -807,6 +855,7 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
           min={0}
           max={100}
           onChange={v => onUpdateCustomization('paddingLeft', v)}
+          onBeforeChange={onBeforeEdit}
           unit="px"
         />
         <Slider
@@ -815,6 +864,7 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
           min={0}
           max={100}
           onChange={v => onUpdateCustomization('paddingRight', v)}
+          onBeforeChange={onBeforeEdit}
           unit="px"
         />
       </Section>

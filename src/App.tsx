@@ -14,7 +14,7 @@ import { useChartData } from './hooks/useChartData';
 import { useChartOptions } from './hooks/useChartOptions';
 import { useHistory } from './hooks/useHistory';
 import { ChartType, ChartData } from './types/chart';
-import { PaletteId } from './data/palettes';
+import { PaletteId, PALETTE_MAP } from './data/palettes';
 import { exportToPptx } from './utils/exportToPptx';
 import { exportChartAsImage } from './utils/exportImage';
 import { DEFAULT_CHART_DATA, DEFAULT_CUSTOMIZATION } from './utils/chartDefaults';
@@ -232,7 +232,16 @@ export default function App() {
   const handleSetChartType = useCallback((type: ChartType) => {
     pushHistory();
     setChartType(type);
-  }, [pushHistory]);
+    if (type === 'pictorial') {
+      const palette = PALETTE_MAP[customization.selectedPalette as PaletteId];
+      if (palette) {
+        updateCustomization('pictorialConfig', {
+          ...customization.pictorialConfig,
+          activeColor: palette.colors[0],
+        });
+      }
+    }
+  }, [pushHistory, customization, updateCustomization]);
 
   const handleUndo = useCallback(() => {
     const previous = history.undo(currentStateRef.current);

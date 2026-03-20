@@ -112,7 +112,7 @@ export const DEFAULT_CUSTOMIZATION: ChartCustomization = {
   pictorialConfig: {
     mode: 'fill',
     shape: 'person',
-    activeColor: '#3b82f6',
+    activeColor: DEFAULT_COLORS[0],
     inactiveColor: '#e5e7eb',
     fillDirection: 'up',
     labelPosition: 'right',

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChartCustomization, ChartType, FontFamily, PointStyle, LegendPosition, PaletteId, DataLabelFormat, DataLabelPosition, NumberFormatType, RadarConfig, ComboConfig, BarShape } from '../types/chart';
+import { ChartCustomization, ChartType, FontFamily, PointStyle, LegendPosition, PaletteId, DataLabelFormat, DataLabelPosition, NumberFormatType, RadarConfig, ComboConfig, BarShape, PictorialShape } from '../types/chart';
 import { PALETTES } from '../data/palettes';
 import { ColorPicker } from './ColorPicker';
 import { ExportButton } from './ExportButton';
@@ -164,11 +164,17 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
     <div className="h-full overflow-y-auto">
       {/* Export */}
       <div className="p-4 border-b border-gray-200 dark:border-gray-700 space-y-2">
-        <ExportButton onExport={onExport} />
+        {chartType !== 'pictorial' && <ExportButton onExport={onExport} />}
         <div className="grid grid-cols-2 gap-2">
           <button
             onClick={() => onExportImage('png')}
-            className="flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+            disabled={chartType === 'pictorial'}
+            className={`flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium border rounded-lg transition-colors ${
+              chartType === 'pictorial'
+                ? 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 text-gray-300 dark:text-gray-600 cursor-not-allowed'
+                : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'
+            }`}
+            title={chartType === 'pictorial' ? 'PNG export not supported for pictorial charts' : undefined}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -177,7 +183,13 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
           </button>
           <button
             onClick={() => onExportImage('jpeg')}
-            className="flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+            disabled={chartType === 'pictorial'}
+            className={`flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium border rounded-lg transition-colors ${
+              chartType === 'pictorial'
+                ? 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 text-gray-300 dark:text-gray-600 cursor-not-allowed'
+                : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'
+            }`}
+            title={chartType === 'pictorial' ? 'JPEG export not supported for pictorial charts' : undefined}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -806,6 +818,115 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
           unit="px"
         />
       </Section>
+
+      {/* Pictorial Options */}
+      {chartType === 'pictorial' && (
+        <Section title="Pictorial Options">
+          <div>
+            <label className="text-xs text-gray-500 dark:text-gray-400">Mode</label>
+            <select
+              value={customization.pictorialConfig.mode}
+              onChange={e => onUpdateCustomization('pictorialConfig', { ...customization.pictorialConfig, mode: e.target.value as 'fill' | 'grid' })}
+              className="w-full mt-1 text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+            >
+              <option value="fill">Fill</option>
+              <option value="grid">Grid</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-gray-500 dark:text-gray-400">Shape</label>
+            <select
+              value={customization.pictorialConfig.shape}
+              onChange={e => onUpdateCustomization('pictorialConfig', { ...customization.pictorialConfig, shape: e.target.value as PictorialShape })}
+              className="w-full mt-1 text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+            >
+              <option value="person">Person</option>
+              <option value="smiley">Smiley</option>
+              <option value="star">Star</option>
+              <option value="heart">Heart</option>
+              <option value="thumbsUp">Thumbs Up</option>
+            </select>
+          </div>
+          <ColorPicker
+            label="Active Color"
+            value={customization.pictorialConfig.activeColor}
+            onChange={v => onUpdateCustomization('pictorialConfig', { ...customization.pictorialConfig, activeColor: v })}
+          />
+          <ColorPicker
+            label="Inactive Color"
+            value={customization.pictorialConfig.inactiveColor}
+            onChange={v => onUpdateCustomization('pictorialConfig', { ...customization.pictorialConfig, inactiveColor: v })}
+          />
+          {customization.pictorialConfig.mode === 'fill' && (
+            <div>
+              <label className="text-xs text-gray-500 dark:text-gray-400">Fill Direction</label>
+              <select
+                value={customization.pictorialConfig.fillDirection}
+                onChange={e => onUpdateCustomization('pictorialConfig', { ...customization.pictorialConfig, fillDirection: e.target.value as 'up' | 'left' })}
+                className="w-full mt-1 text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+              >
+                <option value="up">Bottom to Top</option>
+                <option value="left">Left to Right</option>
+              </select>
+            </div>
+          )}
+          {customization.pictorialConfig.mode === 'grid' && (
+            <Slider
+              label="Grid Columns"
+              value={customization.pictorialConfig.gridColumns}
+              min={5}
+              max={20}
+              onChange={v => onUpdateCustomization('pictorialConfig', { ...customization.pictorialConfig, gridColumns: v })}
+            />
+          )}
+          <Toggle
+            label="Show Label"
+            checked={customization.pictorialConfig.showLabel}
+            onChange={v => onUpdateCustomization('pictorialConfig', { ...customization.pictorialConfig, showLabel: v })}
+          />
+          {customization.pictorialConfig.showLabel && (
+            <>
+              <div>
+                <label className="text-xs text-gray-500 dark:text-gray-400">Label Position</label>
+                <select
+                  value={customization.pictorialConfig.labelPosition}
+                  onChange={e => onUpdateCustomization('pictorialConfig', { ...customization.pictorialConfig, labelPosition: e.target.value as 'left' | 'right' })}
+                  className="w-full mt-1 text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                >
+                  <option value="right">Right</option>
+                  <option value="left">Left</option>
+                </select>
+              </div>
+              <Slider
+                label="Percentage Size"
+                value={customization.pictorialConfig.labelSize}
+                min={24}
+                max={96}
+                onChange={v => onUpdateCustomization('pictorialConfig', { ...customization.pictorialConfig, labelSize: v })}
+                unit="px"
+              />
+              <Slider
+                label="Descriptor Size"
+                value={customization.pictorialConfig.descriptorSize}
+                min={10}
+                max={32}
+                onChange={v => onUpdateCustomization('pictorialConfig', { ...customization.pictorialConfig, descriptorSize: v })}
+                unit="px"
+              />
+              <div>
+                <label className="text-xs text-gray-500 dark:text-gray-400">Descriptor Text</label>
+                <textarea
+                  value={customization.pictorialConfig.descriptor}
+                  onChange={e => onUpdateCustomization('pictorialConfig', { ...customization.pictorialConfig, descriptor: e.target.value })}
+                  className="w-full mt-1 text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                  placeholder="e.g. Enjoy drinking coffee in the morning"
+                  rows={2}
+                />
+              </div>
+            </>
+          )}
+        </Section>
+      )}
     </div>
   );
 };

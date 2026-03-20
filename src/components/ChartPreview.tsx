@@ -57,6 +57,22 @@ interface ChartPreviewProps {
   customization: ChartCustomization;
   isDarkMode: boolean;
   chartRef: React.RefObject<ChartJS>;
+  onUpdateCell?: (datasetIndex: number, labelIndex: number, value: string) => void;
+  onUpdateDatasetLabel?: (datasetIndex: number, label: string) => void;
+  onUpdateCustomization?: <K extends keyof ChartCustomization>(key: K, value: ChartCustomization[K]) => void;
+  onUpdateLabel?: (index: number, value: string) => void;
+}
+
+type EditOverlayType = 'title' | 'subtitle' | 'cell' | 'datasetLabel' | 'axisLabelX' | 'axisLabelY' | 'categoryLabel';
+
+interface EditOverlay {
+  type: EditOverlayType;
+  value: string;
+  x: number;
+  y: number;
+  width: number;
+  datasetIndex?: number;
+  labelIndex?: number;
 }
 
 function hexToRgba(hex: string, alpha: number): string {
@@ -386,10 +402,16 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
   customization,
   isDarkMode,
   chartRef,
+  onUpdateCell,
+  onUpdateDatasetLabel,
+  onUpdateCustomization,
+  onUpdateLabel,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerHeight, setContainerHeight] = useState(0);
   const [containerWidth, setContainerWidth] = useState(0);
+  const [editOverlay, setEditOverlay] = useState<EditOverlay | null>(null);
+  const [cursor, setCursor] = useState<string>('default');
 
   const getChartJSData = useCallback((): ChartJSData => {
     if (isProportionChart(chartType)) {
@@ -807,6 +829,331 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
     return () => ro.disconnect();
   }, []);
 
+  // Close overlay when chart data or customization changes
+  useEffect(() => {
+    setEditOverlay(null);
+  }, [chartData, customization]);
+
+  const commitEdit = useCallback(() => {
+    if (!editOverlay) return;
+    const { type, value, datasetIndex, labelIndex } = editOverlay;
+    switch (type) {
+      case 'title':
+        onUpdateCustomization?.('title', value);
+        break;
+      case 'subtitle':
+        onUpdateCustomization?.('subtitle', value);
+        break;
+      case 'cell':
+        if (datasetIndex !== undefined && labelIndex !== undefined) {
+          onUpdateCell?.(datasetIndex, labelIndex, value);
+        }
+        break;
+      case 'datasetLabel':
+        if (datasetIndex !== undefined) {
+          onUpdateDatasetLabel?.(datasetIndex, value);
+        }
+        break;
+      case 'categoryLabel':
+        if (labelIndex !== undefined) {
+          onUpdateLabel?.(labelIndex, value);
+        }
+        break;
+      case 'axisLabelX':
+        onUpdateCustomization?.('xAxisLabel', value);
+        break;
+      case 'axisLabelY':
+        onUpdateCustomization?.('yAxisLabel', value);
+        break;
+    }
+    setEditOverlay(null);
+  }, [editOverlay, onUpdateCell, onUpdateCustomization, onUpdateDatasetLabel, onUpdateLabel]);
+
+  // Returns canvas-relative coords from a mouse event, accounting for the
+  // inner chart wrapper's offset within containerRef.
+  const getCanvasCoords = useCallback((e: React.MouseEvent): { cx: number; cy: number } | null => {
+    const chart = chartRef.current;
+    if (!chart) return null;
+    const canvas = chart.canvas;
+    const rect = canvas.getBoundingClientRect();
+    return {
+      cx: e.clientX - rect.left,
+      cy: e.clientY - rect.top,
+    };
+  }, [chartRef]);
+
+  // Convert canvas pixel coords to overlay coords relative to the outer container div
+  const canvasToContainer = useCallback((canvasX: number, canvasY: number): { x: number; y: number } => {
+    const chart = chartRef.current;
+    const container = containerRef.current;
+    if (!chart || !container) return { x: canvasX, y: canvasY };
+    const canvasRect = chart.canvas.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+    return {
+      x: canvasX + (canvasRect.left - containerRect.left),
+      y: canvasY + (canvasRect.top - containerRect.top),
+    };
+  }, [chartRef]);
+
+  // Clamp overlay position so it doesn't overflow the container
+  const clampOverlay = useCallback((x: number, y: number, width: number): { x: number; y: number } => {
+    const container = containerRef.current;
+    if (!container) return { x, y };
+    const clientWidth = container.clientWidth;
+    const clientHeight = container.clientHeight;
+    const halfW = width / 2;
+    const clampedX = Math.min(Math.max(x, halfW + 4), clientWidth - halfW - 4);
+    const clampedY = Math.min(Math.max(y, 16), clientHeight - 16);
+    return { x: clampedX, y: clampedY };
+  }, []);
+
+  const handleCanvasClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const chart = chartRef.current;
+    if (!chart) return;
+    // Don't open while animating
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if ((chart as any).animating) return;
+
+    const coords = getCanvasCoords(e);
+    if (!coords) return;
+    const { cx, cy } = coords;
+
+    const isProportion = isProportionChart(chartType);
+    const isCartesian = !isProportion && chartType !== 'radar' && chartType !== 'polarArea';
+    const isHorizontal = chartType === 'bar' && customization.barConfig.horizontal;
+
+    // ── 1. Check title ────────────────────────────────────────────────────────
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const titleBlock = (chart as any).titleBlock as { left?: number; right?: number; top?: number; bottom?: number } | undefined;
+    if (customization.title && titleBlock) {
+      const { left = 0, right = 0, top = 0, bottom = 0 } = titleBlock;
+      if (cx >= left && cx <= right && cy >= top && cy <= bottom) {
+        const w = Math.max(right - left, 120);
+        const { x, y } = clampOverlay(
+          canvasToContainer((left + right) / 2, (top + bottom) / 2).x,
+          canvasToContainer((left + right) / 2, (top + bottom) / 2).y,
+          w
+        );
+        setEditOverlay({ type: 'title', value: customization.title, x, y, width: w });
+        return;
+      }
+    }
+
+    // ── 2. Check subtitle ─────────────────────────────────────────────────────
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const subtitleBlock = (chart as any).subtitleBlock as { left?: number; right?: number; top?: number; bottom?: number } | undefined;
+    if (customization.subtitle && subtitleBlock) {
+      const { left = 0, right = 0, top = 0, bottom = 0 } = subtitleBlock;
+      if (cx >= left && cx <= right && cy >= top && cy <= bottom) {
+        const w = Math.max(right - left, 120);
+        const { x, y } = clampOverlay(
+          canvasToContainer((left + right) / 2, (top + bottom) / 2).x,
+          canvasToContainer((left + right) / 2, (top + bottom) / 2).y,
+          w
+        );
+        setEditOverlay({ type: 'subtitle', value: customization.subtitle, x, y, width: w });
+        return;
+      }
+    }
+
+    // ── 3. Check axis labels ──────────────────────────────────────────────────
+    if (isCartesian && customization.showAxisLabels) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const scaleX = (chart as any).scales?.x as any;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const scaleY = (chart as any).scales?.y as any;
+
+      const xLabel = isHorizontal ? customization.yAxisLabel : customization.xAxisLabel;
+      const yLabel = isHorizontal ? customization.xAxisLabel : customization.yAxisLabel;
+
+      if (xLabel && scaleX) {
+        const { left = 0, right = 0, bottom = 0 } = scaleX;
+        // Axis title area is roughly the bottom 20px of the scale block
+        if (cx >= left && cx <= right && cy >= bottom - 4 && cy <= bottom + 24) {
+          const w = 140;
+          const containerPos = canvasToContainer((left + right) / 2, bottom + 14);
+          const { x, y } = clampOverlay(containerPos.x, containerPos.y, w);
+          const overlayType: EditOverlayType = isHorizontal ? 'axisLabelY' : 'axisLabelX';
+          setEditOverlay({ type: overlayType, value: xLabel, x, y, width: w });
+          return;
+        }
+      }
+
+      if (yLabel && scaleY) {
+        const { left = 0, top = 0, bottom = 0 } = scaleY;
+        // Axis title is roughly the leftmost area of the y scale block
+        if (cx >= left - 4 && cx <= left + 24 && cy >= top && cy <= bottom) {
+          const w = 140;
+          const containerPos = canvasToContainer(left + 14, (top + bottom) / 2);
+          const { x, y } = clampOverlay(containerPos.x, containerPos.y, w);
+          const overlayType: EditOverlayType = isHorizontal ? 'axisLabelX' : 'axisLabelY';
+          setEditOverlay({ type: overlayType, value: yLabel, x, y, width: w });
+          return;
+        }
+      }
+    }
+
+    // ── 4. Check legend items ─────────────────────────────────────────────────
+    if (customization.showLegend) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const legend = (chart as any).legend as any;
+      if (legend?.legendHitBoxes) {
+        const hitBoxes: { left: number; top: number; width: number; height: number }[] = legend.legendHitBoxes;
+        const legendItems: { datasetIndex?: number; index?: number; text?: string }[] = legend.legendItems ?? [];
+        for (let i = 0; i < hitBoxes.length; i++) {
+          const box = hitBoxes[i];
+          if (cx >= box.left && cx <= box.left + box.width && cy >= box.top && cy <= box.top + box.height) {
+            const item = legendItems[i];
+            const w = Math.max(box.width, 100);
+            const containerPos = canvasToContainer(box.left + box.width / 2, box.top + box.height / 2);
+            const { x, y } = clampOverlay(containerPos.x, containerPos.y, w);
+            if (isProportion) {
+              // Proportion chart legend items correspond to category labels
+              const labelIdx = item?.index ?? i;
+              setEditOverlay({
+                type: 'categoryLabel',
+                value: chartData.labels[labelIdx] ?? '',
+                x, y, width: w,
+                labelIndex: labelIdx,
+              });
+            } else {
+              const dsIdx = item?.datasetIndex ?? i;
+              setEditOverlay({
+                type: 'datasetLabel',
+                value: chartData.datasets[dsIdx]?.label ?? '',
+                x, y, width: w,
+                datasetIndex: dsIdx,
+              });
+            }
+            return;
+          }
+        }
+      }
+    }
+
+    // ── 5. Check data elements (bars, points, slices) ─────────────────────────
+    const nativeEvent = e.nativeEvent;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const elements = (chart as any).getElementsAtEventForMode(nativeEvent, 'nearest', { intersect: true }, false) as { datasetIndex: number; index: number }[];
+    if (elements.length > 0) {
+      const { datasetIndex, index } = elements[0];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const meta = (chart as any).getDatasetMeta(datasetIndex);
+      const element = meta.data[index];
+      const rawValue = chartData.datasets[datasetIndex]?.data[index];
+      const w = 90;
+      let elX: number = element.x;
+      let elY: number = element.y;
+      // For pie/doughnut/polar, use tooltipPosition for better placement
+      if (isProportion && typeof element.tooltipPosition === 'function') {
+        const pos = element.tooltipPosition(false);
+        elX = pos.x;
+        elY = pos.y;
+      }
+      const containerPos = canvasToContainer(elX, elY);
+      const { x, y } = clampOverlay(containerPos.x, containerPos.y, w);
+      setEditOverlay({
+        type: 'cell',
+        value: rawValue !== null && rawValue !== undefined ? String(rawValue) : '',
+        x, y, width: w,
+        datasetIndex,
+        labelIndex: index,
+      });
+    }
+  }, [chartRef, chartType, customization, chartData, getCanvasCoords, canvasToContainer, clampOverlay]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleCanvasMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const chart = chartRef.current;
+    if (!chart || (chart as any).animating) { // eslint-disable-line @typescript-eslint/no-explicit-any
+      setCursor('default');
+      return;
+    }
+
+    const coords = getCanvasCoords(e);
+    if (!coords) {
+      setCursor('default');
+      return;
+    }
+    const { cx, cy } = coords;
+
+    const isProportion = isProportionChart(chartType);
+    const isCartesian = !isProportion && chartType !== 'radar' && chartType !== 'polarArea';
+    const isHorizontal = chartType === 'bar' && customization.barConfig.horizontal;
+
+    // Check title
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const titleBlock = (chart as any).titleBlock as { left?: number; right?: number; top?: number; bottom?: number } | undefined;
+    if (customization.title && titleBlock) {
+      const { left = 0, right = 0, top = 0, bottom = 0 } = titleBlock;
+      if (cx >= left && cx <= right && cy >= top && cy <= bottom) {
+        setCursor('text');
+        return;
+      }
+    }
+
+    // Check subtitle
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const subtitleBlock = (chart as any).subtitleBlock as { left?: number; right?: number; top?: number; bottom?: number } | undefined;
+    if (customization.subtitle && subtitleBlock) {
+      const { left = 0, right = 0, top = 0, bottom = 0 } = subtitleBlock;
+      if (cx >= left && cx <= right && cy >= top && cy <= bottom) {
+        setCursor('text');
+        return;
+      }
+    }
+
+    // Check axis labels
+    if (isCartesian && customization.showAxisLabels) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const scaleX = (chart as any).scales?.x as any;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const scaleY = (chart as any).scales?.y as any;
+      const xLabel = isHorizontal ? customization.yAxisLabel : customization.xAxisLabel;
+      const yLabel = isHorizontal ? customization.xAxisLabel : customization.yAxisLabel;
+
+      if (xLabel && scaleX) {
+        const { left = 0, right = 0, bottom = 0 } = scaleX;
+        if (cx >= left && cx <= right && cy >= bottom - 4 && cy <= bottom + 24) {
+          setCursor('text');
+          return;
+        }
+      }
+      if (yLabel && scaleY) {
+        const { left = 0, top = 0, bottom = 0 } = scaleY;
+        if (cx >= left - 4 && cx <= left + 24 && cy >= top && cy <= bottom) {
+          setCursor('text');
+          return;
+        }
+      }
+    }
+
+    // Check legend
+    if (customization.showLegend) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const legend = (chart as any).legend as any;
+      if (legend?.legendHitBoxes) {
+        const hitBoxes: { left: number; top: number; width: number; height: number }[] = legend.legendHitBoxes;
+        for (const box of hitBoxes) {
+          if (cx >= box.left && cx <= box.left + box.width && cy >= box.top && cy <= box.top + box.height) {
+            setCursor('text');
+            return;
+          }
+        }
+      }
+    }
+
+    // Check data elements
+    const nativeEvent = e.nativeEvent;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const elements = (chart as any).getElementsAtEventForMode(nativeEvent, 'nearest', { intersect: true }, false) as unknown[];
+    if (elements.length > 0) {
+      setCursor('pointer');
+      return;
+    }
+
+    setCursor('default');
+  }, [chartRef, chartType, customization, getCanvasCoords]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const aspectRatio = customization.aspectRatio ?? 2;
   const containerReady = containerHeight > 10 && containerWidth > 10;
   const isWidthConstrained = containerReady && containerWidth / aspectRatio <= containerHeight;
@@ -848,11 +1195,40 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
     }
   };
 
+  const hasEditCallbacks = !!(onUpdateCell || onUpdateDatasetLabel || onUpdateCustomization || onUpdateLabel);
+
   return (
-    <div ref={containerRef} className="flex-1 flex flex-col items-center justify-center p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+    <div
+      ref={containerRef}
+      className="flex-1 flex flex-col items-center justify-center p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 relative"
+      style={hasEditCallbacks ? { cursor } : undefined}
+      onClick={hasEditCallbacks ? handleCanvasClick : undefined}
+      onMouseMove={hasEditCallbacks ? handleCanvasMouseMove : undefined}
+    >
       <div className="w-full" style={{ maxWidth: computedWidth, maxHeight: computedHeight, margin: '0 auto' }}>
         {renderChart()}
       </div>
+      {editOverlay && (
+        <input
+          autoFocus
+          type={editOverlay.type === 'cell' ? 'number' : 'text'}
+          value={editOverlay.value}
+          onChange={e => setEditOverlay({ ...editOverlay, value: e.target.value })}
+          onBlur={commitEdit}
+          onKeyDown={e => {
+            if (e.key === 'Enter') commitEdit();
+            if (e.key === 'Escape') setEditOverlay(null);
+          }}
+          onClick={e => e.stopPropagation()}
+          className="absolute z-50 text-sm border-2 border-blue-500 rounded px-2 py-1 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-lg outline-none"
+          style={{
+            left: editOverlay.x,
+            top: editOverlay.y,
+            width: editOverlay.width,
+            transform: 'translate(-50%, -50%)',
+          }}
+        />
+      )}
     </div>
   );
 };

@@ -78,6 +78,7 @@ export const DEFAULT_CUSTOMIZATION: ChartCustomization = {
     grouped: true,
     horizontal: false,
     shape: 'rectangle',
+    stacked100: false,
   },
   lineConfig: {
     tension: 0.4,

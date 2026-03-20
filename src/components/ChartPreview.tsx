@@ -413,6 +413,22 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
   const [editOverlay, setEditOverlay] = useState<EditOverlay | null>(null);
   const [cursor, setCursor] = useState<string>('default');
 
+  /** Normalizes output dataset values to 100% for each label index. Mutates in place. */
+  const applyStacked100Normalization = useCallback(
+    (outputDatasets: { data: number[] }[]) => {
+      const labelCount = chartData.labels.length;
+      for (let li = 0; li < labelCount; li++) {
+        const total = chartData.datasets.reduce((sum, ds) => sum + Math.abs(ds.data[li] ?? 0), 0);
+        if (total === 0) continue;
+        outputDatasets.forEach((ds, di) => {
+          const raw = chartData.datasets[di].data[li] ?? 0;
+          ds.data[li] = parseFloat(((raw / total) * 100).toFixed(1));
+        });
+      }
+    },
+    [chartData],
+  );
+
   const getChartJSData = useCallback((): ChartJSData => {
     if (isProportionChart(chartType)) {
       const rawSliceColors = customization.sliceColors ?? [];
@@ -459,7 +475,7 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
       const lineIdx = customization.comboConfig.lineDatasetIndex < 0 || customization.comboConfig.lineDatasetIndex >= dsCount
         ? dsCount - 1
         : customization.comboConfig.lineDatasetIndex;
-      return {
+      const comboResult = {
         labels: chartData.labels,
         datasets: chartData.datasets.map((ds, di) => {
           const cfg = customization.datasetConfigs[di] || customization.datasetConfigs[0];
@@ -494,9 +510,13 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
           };
         }),
       };
+      if (customization.barConfig.stacked100 && !customization.barConfig.grouped) {
+        applyStacked100Normalization(comboResult.datasets as { data: number[] }[]);
+      }
+      return comboResult;
     }
 
-    return {
+    const generalResult = {
       labels: chartData.labels,
       datasets: chartData.datasets.map((ds, di) => {
         const cfg = customization.datasetConfigs[di] || customization.datasetConfigs[0];
@@ -547,7 +567,13 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
         return baseDataset;
       }),
     };
-  }, [chartType, chartData, customization]);
+
+    if (chartType === 'bar' && customization.barConfig.stacked100 && !customization.barConfig.grouped) {
+      applyStacked100Normalization(generalResult.datasets as { data: number[] }[]);
+    }
+
+    return generalResult;
+  }, [chartType, chartData, customization, applyStacked100Normalization]);
 
   const getChartOptions = useCallback((): ChartOptions => {
     const c = customization;
@@ -571,6 +597,8 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
 
     const isRadial = chartType === 'radar' || chartType === 'polarArea';
     const isProportion = isProportionChart(chartType);
+    const isBarOrCombo = chartType === 'bar' || chartType === 'combo';
+    const is100StackedLabels = isBarOrCombo && c.barConfig.stacked100 && !c.barConfig.grouped;
     const totalPieValue = isProportion
       ? chartData.datasets.slice(0, 1).reduce((sum, ds) => sum + ds.data.reduce((s: number, v) => s + (v ?? 0), 0), 0)
       : 0;
@@ -592,6 +620,7 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
               if (c.dataLabelFormat === 'percentage') return `${pct}%`;
               if (c.dataLabelFormat === 'valueAndPercentage') return `${formatted}\n${pct}%`;
             }
+            if (is100StackedLabels) return `${num.toFixed(c.dataLabelDecimalPlaces)}%`;
             return formatted;
           },
           anchor: c.dataLabelPosition === 'auto' ? 'center' : c.dataLabelPosition,
@@ -722,13 +751,30 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
     const isHorizontal = chartType === 'bar' && c.barConfig.horizontal;
     const xLabel = isHorizontal ? c.yAxisLabel : c.xAxisLabel;
     const yLabel = isHorizontal ? c.xAxisLabel : c.yAxisLabel;
+    const isBarOrComboChart = chartType === 'bar' || chartType === 'combo';
+    const is100Stacked = isBarOrComboChart && c.barConfig.stacked100 && !c.barConfig.grouped;
 
     return {
       ...baseOptions,
       ...(isHorizontal ? { indexAxis: 'y' as const } : {}),
+      plugins: {
+        ...baseOptions.plugins,
+        tooltip: {
+          ...baseOptions.plugins?.tooltip,
+          ...(is100Stacked ? {
+            callbacks: {
+              label: (ctx: { dataset: { label?: string }; parsed: { x: number; y: number } }) => {
+                const val = isHorizontal ? ctx.parsed.x : ctx.parsed.y;
+                return `${ctx.dataset.label ?? ''}: ${val.toFixed(1)}%`;
+              },
+            },
+          } : {}),
+        },
+      },
       scales: {
         x: {
-          stacked: (chartType === 'bar' || chartType === 'combo') && !c.barConfig.grouped,
+          stacked: isBarOrComboChart && !c.barConfig.grouped,
+          ...(is100Stacked && isHorizontal ? { max: 100 } : {}),
           grid: {
             display: c.showGridlines,
             color: gridColor,
@@ -744,6 +790,7 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
               callback: (value: number | string) => {
                 const num = typeof value === 'number' ? value : parseFloat(String(value));
                 if (isNaN(num)) return String(value);
+                if (is100Stacked) return `${num}%`;
                 return formatNumber(num, c.numberFormat);
               },
             } : {}),
@@ -760,9 +807,9 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
           },
         },
         y: {
-          stacked: (chartType === 'bar' || chartType === 'combo') && !c.barConfig.grouped,
+          stacked: isBarOrComboChart && !c.barConfig.grouped,
           min: c.yAxisMin ?? undefined,
-          max: c.yAxisMax ?? undefined,
+          max: is100Stacked && !isHorizontal ? 100 : (c.yAxisMax ?? undefined),
           grid: {
             display: c.showGridlines,
             color: gridColor,
@@ -779,6 +826,7 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
               callback: (value: number | string) => {
                 const num = typeof value === 'number' ? value : parseFloat(String(value));
                 if (isNaN(num)) return String(value);
+                if (is100Stacked) return `${num}%`;
                 return formatNumber(num, c.numberFormat);
               },
             } : {}),

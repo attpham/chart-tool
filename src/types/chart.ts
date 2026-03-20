@@ -49,6 +49,7 @@ export interface BarConfig {
   grouped: boolean;
   horizontal: boolean;
   shape: BarShape;
+  stacked100: boolean;
 }
 
 export interface RadarConfig {

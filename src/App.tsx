@@ -279,6 +279,10 @@ export default function App() {
             customization={customization}
             isDarkMode={isDarkMode}
             chartRef={chartRef}
+            onUpdateCell={updateCell}
+            onUpdateDatasetLabel={updateDatasetLabel}
+            onUpdateCustomization={updateCustomization}
+            onUpdateLabel={updateLabel}
           />
         </div>
 

@@ -87,6 +87,10 @@ export function useChartOptions() {
         selectedPalette: paletteId,
         datasetConfigs: newConfigs,
         sliceColors: newSliceColors,
+        pictorialConfig: {
+          ...prev.pictorialConfig,
+          activeColor: palette.colors[0],
+        },
         titleFont: { ...prev.titleFont, color: textColor },
         axisLabelFont: { ...prev.axisLabelFont, color: textColor },
         tickLabelFont: { ...prev.tickLabelFont, color: gridColor },

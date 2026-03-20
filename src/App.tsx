@@ -9,9 +9,10 @@ import { SavedChartsModal } from './components/SavedChartsModal';
 import { SaveChartDialog } from './components/SaveChartDialog';
 import { NewChartDialog } from './components/NewChartDialog';
 import { useChartStorage } from './hooks/useChartStorage';
-import type { AppState, SavedChart } from './types/chart';
+import type { AppState, SavedChart, ChartCustomization } from './types/chart';
 import { useChartData } from './hooks/useChartData';
 import { useChartOptions } from './hooks/useChartOptions';
+import { useHistory } from './hooks/useHistory';
 import { ChartType, ChartData } from './types/chart';
 import { PaletteId } from './data/palettes';
 import { exportToPptx } from './utils/exportToPptx';
@@ -27,6 +28,7 @@ export default function App() {
   const [importError, setImportError] = useState<string | null>(null);
   const chartRef = useRef<ChartJS>(null);
   const hasRestoredRef = useRef(false);
+  const history = useHistory<AppState>(50);
 
   const {
     chartData,
@@ -80,6 +82,17 @@ export default function App() {
   const currentStateRef = useRef<AppState>(currentState);
   currentStateRef.current = currentState;
 
+  const pushHistory = useCallback(() => {
+    history.push(currentStateRef.current);
+  }, [history]);
+
+  const restoreState = useCallback((state: AppState) => {
+    setChartType(state.chartType);
+    setIsDarkMode(state.isDarkMode);
+    importData(state.chartData);
+    loadCustomization(state.customization);
+  }, [importData, loadCustomization]);
+
   // Auto-save whenever state changes
   useEffect(() => {
     if (!hasRestoredRef.current) return;
@@ -95,10 +108,11 @@ export default function App() {
   }, [chartData.labels.length, syncSliceColors]);
 
   const handleImportData = useCallback((data: ChartData) => {
+    pushHistory();
     importData(data);
     // Sync dataset configs immediately for new dataset labels/counts
     syncDatasetConfigs(data.datasets.length, data.datasets.map(d => d.label));
-  }, [importData, syncDatasetConfigs]);
+  }, [pushHistory, importData, syncDatasetConfigs]);
 
   useEffect(() => {
     if (isDarkMode) {
@@ -119,8 +133,9 @@ export default function App() {
   }, [customization.title]);
 
   const handleApplyPalette = useCallback((paletteId: PaletteId) => {
+    pushHistory();
     applyPalette(paletteId, isDarkMode);
-  }, [applyPalette, isDarkMode]);
+  }, [pushHistory, applyPalette, isDarkMode]);
 
   const handleSaveChart = useCallback((name: string) => {
     saveChart(name, currentStateRef.current);
@@ -128,12 +143,13 @@ export default function App() {
   }, [saveChart]);
 
   const handleLoadChart = useCallback((chart: SavedChart) => {
+    pushHistory();
     setChartType(chart.state.chartType);
     setIsDarkMode(chart.state.isDarkMode);
     importData(chart.state.chartData);
     loadCustomization(chart.state.customization);
     setShowMyCharts(false);
-  }, [importData, loadCustomization]);
+  }, [pushHistory, importData, loadCustomization]);
 
   const handleExportConfig = useCallback(() => {
     exportConfig(currentStateRef.current);
@@ -143,6 +159,7 @@ export default function App() {
     setImportError(null);
     try {
       const state = await importConfig();
+      pushHistory();
       setChartType(state.chartType);
       setIsDarkMode(state.isDarkMode);
       importData(state.chartData);
@@ -151,14 +168,15 @@ export default function App() {
       setImportError(err instanceof Error ? err.message : 'Failed to import config');
       setTimeout(() => setImportError(null), 4000);
     }
-  }, [importConfig, importData, loadCustomization]);
+  }, [pushHistory, importConfig, importData, loadCustomization]);
 
   const resetToNewChart = useCallback(() => {
     setChartType('bar');
     importData(DEFAULT_CHART_DATA);
     loadCustomization(DEFAULT_CUSTOMIZATION);
     clearAutoSave();
-  }, [importData, loadCustomization, clearAutoSave]);
+    history.clear();
+  }, [importData, loadCustomization, clearAutoSave, history]);
 
   const handleNewChart = useCallback(() => {
     resetToNewChart();
@@ -170,6 +188,84 @@ export default function App() {
     resetToNewChart();
     setShowNewChartDialog(false);
   }, [saveChart, resetToNewChart]);
+
+  const handleAddRow = useCallback(() => {
+    pushHistory();
+    addRow();
+  }, [pushHistory, addRow]);
+
+  const handleRemoveRow = useCallback((index: number) => {
+    pushHistory();
+    removeRow(index);
+  }, [pushHistory, removeRow]);
+
+  const handleAddColumn = useCallback(() => {
+    pushHistory();
+    addColumn();
+  }, [pushHistory, addColumn]);
+
+  const handleRemoveColumn = useCallback((index: number) => {
+    pushHistory();
+    removeColumn(index);
+  }, [pushHistory, removeColumn]);
+
+  const handleUpdateLabel = useCallback((index: number, value: string) => {
+    pushHistory();
+    updateLabel(index, value);
+  }, [pushHistory, updateLabel]);
+
+  const handleUpdateCell = useCallback((datasetIndex: number, labelIndex: number, value: string) => {
+    pushHistory();
+    updateCell(datasetIndex, labelIndex, value);
+  }, [pushHistory, updateCell]);
+
+  const handleUpdateDatasetLabel = useCallback((index: number, value: string) => {
+    pushHistory();
+    updateDatasetLabel(index, value);
+  }, [pushHistory, updateDatasetLabel]);
+
+  const handleUpdateCustomization = useCallback(<K extends keyof ChartCustomization>(key: K, value: ChartCustomization[K]) => {
+    pushHistory();
+    updateCustomization(key, value);
+  }, [pushHistory, updateCustomization]);
+
+  const handleSetChartType = useCallback((type: ChartType) => {
+    pushHistory();
+    setChartType(type);
+  }, [pushHistory]);
+
+  const handleUndo = useCallback(() => {
+    const previous = history.undo(currentStateRef.current);
+    if (previous) restoreState(previous);
+  }, [history, restoreState]);
+
+  const handleRedo = useCallback(() => {
+    const next = history.redo(currentStateRef.current);
+    if (next) restoreState(next);
+  }, [history, restoreState]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const isMac = /Mac|iPhone|iPad|iPod/i.test(navigator.platform);
+      const mod = isMac ? e.metaKey : e.ctrlKey;
+
+      if (mod && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        handleUndo();
+      }
+      if (mod && e.key === 'z' && e.shiftKey) {
+        e.preventDefault();
+        handleRedo();
+      }
+      if (mod && e.key === 'y') {
+        e.preventDefault();
+        handleRedo();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleUndo, handleRedo]);
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 transition-colors">
@@ -193,6 +289,36 @@ export default function App() {
           {importError && (
             <span className="text-xs text-red-500 dark:text-red-400 mr-2">{importError}</span>
           )}
+          {/* Undo button */}
+          <button
+            onClick={handleUndo}
+            disabled={!history.canUndo}
+            className={`flex items-center gap-1 px-2 py-1.5 text-sm font-medium border rounded-lg transition-colors ${
+              history.canUndo
+                ? 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 text-gray-300 dark:text-gray-600 cursor-not-allowed'
+            }`}
+            title="Undo (Ctrl+Z)"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a5 5 0 015 5v2M3 10l4-4M3 10l4 4" />
+            </svg>
+          </button>
+          {/* Redo button */}
+          <button
+            onClick={handleRedo}
+            disabled={!history.canRedo}
+            className={`flex items-center gap-1 px-2 py-1.5 text-sm font-medium border rounded-lg transition-colors ${
+              history.canRedo
+                ? 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 text-gray-300 dark:text-gray-600 cursor-not-allowed'
+            }`}
+            title="Redo (Ctrl+Shift+Z)"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 10H11a5 5 0 00-5 5v2M21 10l-4-4M21 10l-4 4" />
+            </svg>
+          </button>
           <button
             onClick={() => setShowNewChartDialog(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
@@ -256,17 +382,17 @@ export default function App() {
       <div className="flex h-[calc(100vh-57px)] overflow-hidden">
         {/* Left Panel */}
         <div className="w-72 flex-shrink-0 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden">
-          <ChartTypeSelector selectedType={chartType} onChange={setChartType} />
+          <ChartTypeSelector selectedType={chartType} onChange={handleSetChartType} />
           <DataTable
             chartType={chartType}
             chartData={chartData}
-            onUpdateLabel={updateLabel}
-            onUpdateCell={updateCell}
-            onUpdateDatasetLabel={updateDatasetLabel}
-            onAddRow={addRow}
-            onRemoveRow={removeRow}
-            onAddColumn={addColumn}
-            onRemoveColumn={removeColumn}
+            onUpdateLabel={handleUpdateLabel}
+            onUpdateCell={handleUpdateCell}
+            onUpdateDatasetLabel={handleUpdateDatasetLabel}
+            onAddRow={handleAddRow}
+            onRemoveRow={handleRemoveRow}
+            onAddColumn={handleAddColumn}
+            onRemoveColumn={handleRemoveColumn}
             onImportData={handleImportData}
           />
         </div>
@@ -279,10 +405,10 @@ export default function App() {
             customization={customization}
             isDarkMode={isDarkMode}
             chartRef={chartRef}
-            onUpdateCell={updateCell}
-            onUpdateDatasetLabel={updateDatasetLabel}
-            onUpdateCustomization={updateCustomization}
-            onUpdateLabel={updateLabel}
+            onUpdateCell={handleUpdateCell}
+            onUpdateDatasetLabel={handleUpdateDatasetLabel}
+            onUpdateCustomization={handleUpdateCustomization}
+            onUpdateLabel={handleUpdateLabel}
           />
         </div>
 
@@ -297,7 +423,7 @@ export default function App() {
             chartType={chartType}
             chartLabels={chartData.labels}
             customization={customization}
-            onUpdateCustomization={updateCustomization}
+            onUpdateCustomization={handleUpdateCustomization}
             onUpdateDatasetConfig={updateDatasetConfig}
             onApplyPalette={handleApplyPalette}
             onExport={handleExport}

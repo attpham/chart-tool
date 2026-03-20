@@ -439,8 +439,21 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
           <Toggle
             label="Grouped (vs Stacked)"
             checked={customization.barConfig.grouped}
-            onChange={v => onUpdateCustomization('barConfig', { ...customization.barConfig, grouped: v })}
+            onChange={v => onUpdateCustomization('barConfig', { ...customization.barConfig, grouped: v, ...(v ? { stacked100: false } : {}) })}
           />
+          {(isBar || isCombo) && !customization.barConfig.grouped && (
+            <div className="flex items-center justify-between">
+              <label className="text-xs text-gray-500 dark:text-gray-400">100% Stacked</label>
+              <input
+                type="checkbox"
+                checked={customization.barConfig.stacked100}
+                onChange={e => onUpdateCustomization('barConfig', {
+                  ...customization.barConfig,
+                  stacked100: e.target.checked,
+                })}
+              />
+            </div>
+          )}
           {isBar && (
             <Toggle
               label="Horizontal"

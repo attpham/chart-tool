@@ -86,6 +86,10 @@ export default function App() {
     history.push(currentStateRef.current);
   }, [history]);
 
+  const onBeforeEdit = useCallback(() => {
+    pushHistory();
+  }, [pushHistory]);
+
   const restoreState = useCallback((state: AppState) => {
     setChartType(state.chartType);
     setIsDarkMode(state.isDarkMode);
@@ -210,24 +214,20 @@ export default function App() {
   }, [pushHistory, removeColumn]);
 
   const handleUpdateLabel = useCallback((index: number, value: string) => {
-    pushHistory();
     updateLabel(index, value);
-  }, [pushHistory, updateLabel]);
+  }, [updateLabel]);
 
   const handleUpdateCell = useCallback((datasetIndex: number, labelIndex: number, value: string) => {
-    pushHistory();
     updateCell(datasetIndex, labelIndex, value);
-  }, [pushHistory, updateCell]);
+  }, [updateCell]);
 
   const handleUpdateDatasetLabel = useCallback((index: number, value: string) => {
-    pushHistory();
     updateDatasetLabel(index, value);
-  }, [pushHistory, updateDatasetLabel]);
+  }, [updateDatasetLabel]);
 
   const handleUpdateCustomization = useCallback(<K extends keyof ChartCustomization>(key: K, value: ChartCustomization[K]) => {
-    pushHistory();
     updateCustomization(key, value);
-  }, [pushHistory, updateCustomization]);
+  }, [updateCustomization]);
 
   const handleSetChartType = useCallback((type: ChartType) => {
     pushHistory();
@@ -394,6 +394,7 @@ export default function App() {
             onAddColumn={handleAddColumn}
             onRemoveColumn={handleRemoveColumn}
             onImportData={handleImportData}
+            onBeforeEdit={onBeforeEdit}
           />
         </div>
 
@@ -409,6 +410,7 @@ export default function App() {
             onUpdateDatasetLabel={handleUpdateDatasetLabel}
             onUpdateCustomization={handleUpdateCustomization}
             onUpdateLabel={handleUpdateLabel}
+            onBeforeEdit={onBeforeEdit}
           />
         </div>
 
@@ -428,6 +430,7 @@ export default function App() {
             onApplyPalette={handleApplyPalette}
             onExport={handleExport}
             onExportImage={handleExportImage}
+            onBeforeEdit={onBeforeEdit}
           />
         </div>
       </div>

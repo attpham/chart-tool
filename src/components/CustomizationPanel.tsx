@@ -156,12 +156,13 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
   onExportImage,
   onBeforeEdit,
 }) => {
-  const isCartesian = !['pie', 'doughnut', 'radar', 'polarArea'].includes(chartType);
+  const isCartesian = !['pie', 'doughnut', 'radar', 'polarArea', 'pictorial'].includes(chartType);
   const isBar = chartType === 'bar';
   const isCombo = chartType === 'combo';
   const isLineOrArea = chartType === 'line' || chartType === 'area';
   const isRadar = chartType === 'radar';
   const isProportion = isProportionChart(chartType);
+  const isPictorial = chartType === 'pictorial';
 
   // Wrapper for discrete controls (toggles, selects, color pickers) so each
   // interaction creates exactly one undo step via onBeforeEdit.
@@ -252,12 +253,14 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
           checked={customization.animationEnabled}
           onChange={v => beforeUpdate('animationEnabled', v)}
         />
+        {!isPictorial && (
         <Toggle
           label="Show Legend"
           checked={customization.showLegend}
           onChange={v => beforeUpdate('showLegend', v)}
         />
-        {customization.showLegend && (
+        )}
+        {!isPictorial && customization.showLegend && (
           <div>
             <label className="text-xs text-gray-500 dark:text-gray-400">Legend Position</label>
             <select
@@ -303,6 +306,7 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
       </Section>
 
       {/* Colors */}
+      {!isPictorial && (
       <Section title="Colors">
         {isProportion ? (
           chartLabels.map((label, i) => (
@@ -345,6 +349,7 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
           ))
         )}
       </Section>
+      )}
 
       {/* Fonts */}
       <Section title="Fonts" defaultOpen={false}>
@@ -362,6 +367,7 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
             fontKey="subtitleFont"
           />
         </div>
+        {!isPictorial && (
         <div className="border-t border-gray-100 dark:border-gray-700 pt-3">
           <FontSection
             title="Axis Labels"
@@ -370,6 +376,8 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
             fontKey="axisLabelFont"
           />
         </div>
+        )}
+        {!isPictorial && (
         <div className="border-t border-gray-100 dark:border-gray-700 pt-3">
           <FontSection
             title="Tick Labels"
@@ -378,6 +386,8 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
             fontKey="tickLabelFont"
           />
         </div>
+        )}
+        {!isPictorial && (
         <div className="border-t border-gray-100 dark:border-gray-700 pt-3">
           <FontSection
             title="Legend"
@@ -386,6 +396,7 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
             fontKey="legendFont"
           />
         </div>
+        )}
       </Section>
 
       {/* Axes */}
@@ -638,6 +649,7 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
       )}
 
       {/* Data Labels */}
+      {!isPictorial && (
       <Section title="Data Labels" defaultOpen={false}>
         <Toggle
           label="Show Data Labels"
@@ -730,8 +742,10 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
           </>
         )}
       </Section>
+      )}
 
       {/* Number Format */}
+      {!isPictorial && (
       <Section title="Number Format" defaultOpen={false}>
         <div>
           <label className="text-xs text-gray-500 dark:text-gray-400">Format Type</label>
@@ -828,6 +842,7 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
           </div>
         </div>
       </Section>
+      )}
 
       {/* Padding */}
       <Section title="Padding" defaultOpen={false}>

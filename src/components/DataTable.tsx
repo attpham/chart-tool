@@ -31,6 +31,7 @@ export const DataTable: React.FC<DataTableProps> = ({
   onBeforeEdit,
 }) => {
   const isProportion = isProportionChart(chartType);
+  const isPictorial = chartType === 'pictorial';
   const tableRef = useRef<HTMLTableElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showPasteModal, setShowPasteModal] = useState(false);
@@ -134,6 +135,7 @@ export const DataTable: React.FC<DataTableProps> = ({
         <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
           Data Table
         </h2>
+        {!isPictorial && (
         <div className="flex gap-1">
           {!isProportion && (
             <button
@@ -152,9 +154,11 @@ export const DataTable: React.FC<DataTableProps> = ({
             + Row
           </button>
         </div>
+        )}
       </div>
 
       {/* Import controls */}
+      {!isPictorial && (
       <div className="flex gap-1.5 mb-3">
         <button
           onClick={() => { setShowPasteModal(true); setPasteError(null); }}
@@ -178,7 +182,27 @@ export const DataTable: React.FC<DataTableProps> = ({
           onChange={handleFileInput}
         />
       </div>
+      )}
 
+      {/* Pictorial: single percentage input */}
+      {isPictorial && (
+        <div className="space-y-2">
+          <label className="text-xs text-gray-500 dark:text-gray-400">Value (%)</label>
+          <input
+            type="number"
+            min={0}
+            max={100}
+            value={chartData.datasets[0]?.data[0] === null ? '' : String(chartData.datasets[0]?.data[0] ?? '')}
+            onChange={e => onUpdateCell(0, 0, e.target.value)}
+            onFocus={onBeforeEdit}
+            className="w-full text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+            placeholder="0–100"
+          />
+          <p className="text-xs text-gray-400 dark:text-gray-500">Enter a percentage value from 0 to 100.</p>
+        </div>
+      )}
+
+      {!isPictorial && (
       <div className="overflow-x-auto">
         <table ref={tableRef} className="w-full text-xs border-collapse">
           <thead>
@@ -263,6 +287,7 @@ export const DataTable: React.FC<DataTableProps> = ({
           </tbody>
         </table>
       </div>
+      )}
 
       {/* Paste modal */}
       {showPasteModal && (

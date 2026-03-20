@@ -14,6 +14,7 @@ interface DataTableProps {
   onAddColumn: () => void;
   onRemoveColumn: (datasetIndex: number) => void;
   onImportData: (data: ChartData) => void;
+  onBeforeEdit?: () => void;
 }
 
 export const DataTable: React.FC<DataTableProps> = ({
@@ -27,6 +28,7 @@ export const DataTable: React.FC<DataTableProps> = ({
   onAddColumn,
   onRemoveColumn,
   onImportData,
+  onBeforeEdit,
 }) => {
   const isProportion = isProportionChart(chartType);
   const tableRef = useRef<HTMLTableElement>(null);
@@ -194,6 +196,7 @@ export const DataTable: React.FC<DataTableProps> = ({
                       <input
                         value={ds.label}
                         onChange={e => onUpdateDatasetLabel(di, e.target.value)}
+                        onFocus={onBeforeEdit}
                         className="w-full min-w-0 border border-gray-300 dark:border-gray-600 rounded px-1.5 py-0.5 text-xs bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium text-center"
                         placeholder={`Dataset ${di + 1}`}
                       />
@@ -230,6 +233,7 @@ export const DataTable: React.FC<DataTableProps> = ({
                   <input
                     value={label}
                     onChange={e => onUpdateLabel(li, e.target.value)}
+                    onFocus={onBeforeEdit}
                     onKeyDown={e => handleKeyDown(e, -1, li)}
                     data-cell="true"
                     data-row="-1"
@@ -244,6 +248,7 @@ export const DataTable: React.FC<DataTableProps> = ({
                       type="number"
                       value={ds.data[li] === null ? '' : String(ds.data[li])}
                       onChange={e => onUpdateCell(di, li, e.target.value)}
+                      onFocus={onBeforeEdit}
                       onKeyDown={e => handleKeyDown(e, di, li)}
                       data-cell="true"
                       data-row={String(di)}

@@ -61,6 +61,7 @@ interface ChartPreviewProps {
   onUpdateDatasetLabel?: (datasetIndex: number, label: string) => void;
   onUpdateCustomization?: <K extends keyof ChartCustomization>(key: K, value: ChartCustomization[K]) => void;
   onUpdateLabel?: (index: number, value: string) => void;
+  onBeforeEdit?: () => void;
 }
 
 type EditOverlayType = 'title' | 'subtitle' | 'cell' | 'datasetLabel' | 'axisLabelX' | 'axisLabelY' | 'categoryLabel';
@@ -406,6 +407,7 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
   onUpdateDatasetLabel,
   onUpdateCustomization,
   onUpdateLabel,
+  onBeforeEdit,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerHeight, setContainerHeight] = useState(0);
@@ -500,6 +502,7 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
               pointRadius: customization.comboConfig.linePointRadius,
               fill: customization.comboConfig.lineFill,
               pointStyle: 'circle',
+              order: 0,
             };
           }
           return {
@@ -507,6 +510,7 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
             type: 'bar' as const,
             borderRadius: customization.barConfig.borderRadius,
             barThickness: customization.barConfig.barThickness,
+            order: 1,
           };
         }),
       };
@@ -603,6 +607,14 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
       ? chartData.datasets.slice(0, 1).reduce((sum, ds) => sum + ds.data.reduce((s: number, v) => s + (v ?? 0), 0), 0)
       : 0;
 
+    // Bug 5: chart-type-aware anchor/align for 'auto' position
+    const isPointBasedChart = chartType === 'line' || chartType === 'scatter' || chartType === 'area';
+    const autoAnchor = isProportion ? 'center' : (isPointBasedChart ? 'end' : 'end');
+    const autoAlign = isProportion ? 'center' : (isPointBasedChart ? 'top' : 'end');
+
+    // Bug 3: dark-mode-aware label color (updates when isDarkMode changes)
+    const darkModeAwareLabelColor = dark ? '#f9fafb' : '#374151';
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const datalabelsConfig: any = c.showDataLabels
       ? {
@@ -623,8 +635,8 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
             if (is100StackedLabels) return `${num.toFixed(c.dataLabelDecimalPlaces)}%`;
             return formatted;
           },
-          anchor: c.dataLabelPosition === 'auto' ? 'center' : c.dataLabelPosition,
-          align: c.dataLabelPosition === 'end' ? 'top' : (c.dataLabelPosition === 'start' ? 'bottom' : 'center'),
+          anchor: c.dataLabelPosition === 'auto' ? autoAnchor : c.dataLabelPosition,
+          align: c.dataLabelPosition === 'auto' ? autoAlign : (c.dataLabelPosition === 'end' ? 'top' : (c.dataLabelPosition === 'start' ? 'bottom' : 'center')),
           // Auto-contrast only when the label sits inside the element (center/start).
           // For 'end' and 'auto', the label floats above/outside on the chart background,
           // so always use the configured font color (avoids invisible white-on-white text).
@@ -634,10 +646,10 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
               const bg = ctx.dataset.backgroundColor;
               const color = Array.isArray(bg) ? bg[ctx.dataIndex] : bg;
               if (typeof color === 'string' && color.startsWith('#')) {
-                return needsWhiteText(color) ? '#ffffff' : c.dataLabelFont.color;
+                return needsWhiteText(color) ? '#ffffff' : darkModeAwareLabelColor;
               }
             }
-            return c.dataLabelFont.color;
+            return darkModeAwareLabelColor;
           },
           padding: 4,
           clip: false,
@@ -684,6 +696,9 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
         legend: {
           display: c.showLegend,
           position: c.legendPosition,
+          // Override the default onClick (which toggles dataset visibility) so that
+          // clicking a legend item only triggers our direct-edit overlay (Bug 2).
+          onClick: () => {},
           labels: {
             color: legendColor,
             font: {
@@ -756,7 +771,7 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
 
     return {
       ...baseOptions,
-      ...(isHorizontal ? { indexAxis: 'y' as const } : {}),
+      indexAxis: isHorizontal ? 'y' as const : 'x' as const,
       plugins: {
         ...baseOptions.plugins,
         tooltip: {
@@ -982,6 +997,7 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
           canvasToContainer((left + right) / 2, (top + bottom) / 2).y,
           w
         );
+        onBeforeEdit?.();
         setEditOverlay({ type: 'title', value: customization.title, x, y, width: w });
         return;
       }
@@ -999,6 +1015,7 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
           canvasToContainer((left + right) / 2, (top + bottom) / 2).y,
           w
         );
+        onBeforeEdit?.();
         setEditOverlay({ type: 'subtitle', value: customization.subtitle, x, y, width: w });
         return;
       }
@@ -1016,12 +1033,13 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
 
       if (xLabel && scaleX) {
         const { left = 0, right = 0, bottom = 0 } = scaleX;
-        // Axis title area is roughly the bottom 20px of the scale block
-        if (cx >= left && cx <= right && cy >= bottom - 4 && cy <= bottom + 24) {
+        // Axis title area is rendered inside the bottom portion of the scale block
+        if (cx >= left && cx <= right && cy >= bottom - 28 && cy <= bottom) {
           const w = 140;
-          const containerPos = canvasToContainer((left + right) / 2, bottom + 14);
+          const containerPos = canvasToContainer((left + right) / 2, bottom - 10);
           const { x, y } = clampOverlay(containerPos.x, containerPos.y, w);
           const overlayType: EditOverlayType = isHorizontal ? 'axisLabelY' : 'axisLabelX';
+          onBeforeEdit?.();
           setEditOverlay({ type: overlayType, value: xLabel, x, y, width: w });
           return;
         }
@@ -1029,12 +1047,13 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
 
       if (yLabel && scaleY) {
         const { left = 0, top = 0, bottom = 0 } = scaleY;
-        // Axis title is roughly the leftmost area of the y scale block
+        // Y-axis title is the leftmost strip of the y-scale area (rotated 90°)
         if (cx >= left - 4 && cx <= left + 24 && cy >= top && cy <= bottom) {
           const w = 140;
-          const containerPos = canvasToContainer(left + 14, (top + bottom) / 2);
+          const containerPos = canvasToContainer(Math.max(left / 2, 8), (top + bottom) / 2);
           const { x, y } = clampOverlay(containerPos.x, containerPos.y, w);
           const overlayType: EditOverlayType = isHorizontal ? 'axisLabelX' : 'axisLabelY';
+          onBeforeEdit?.();
           setEditOverlay({ type: overlayType, value: yLabel, x, y, width: w });
           return;
         }
@@ -1055,6 +1074,7 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
             const w = Math.max(box.width, 100);
             const containerPos = canvasToContainer(box.left + box.width / 2, box.top + box.height / 2);
             const { x, y } = clampOverlay(containerPos.x, containerPos.y, w);
+            onBeforeEdit?.();
             if (isProportion) {
               // Proportion chart legend items correspond to category labels
               const labelIdx = item?.index ?? i;
@@ -1100,6 +1120,7 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
       }
       const containerPos = canvasToContainer(elX, elY);
       const { x, y } = clampOverlay(containerPos.x, containerPos.y, w);
+      onBeforeEdit?.();
       setEditOverlay({
         type: 'cell',
         value: rawValue !== null && rawValue !== undefined ? String(rawValue) : '',
@@ -1108,7 +1129,7 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
         labelIndex: index,
       });
     }
-  }, [chartRef, chartType, customization, chartData, getCanvasCoords, canvasToContainer, clampOverlay]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [chartRef, chartType, customization, chartData, getCanvasCoords, canvasToContainer, clampOverlay, onBeforeEdit]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCanvasMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const chart = chartRef.current;
@@ -1161,7 +1182,7 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
 
       if (xLabel && scaleX) {
         const { left = 0, right = 0, bottom = 0 } = scaleX;
-        if (cx >= left && cx <= right && cy >= bottom - 4 && cy <= bottom + 24) {
+        if (cx >= left && cx <= right && cy >= bottom - 28 && cy <= bottom) {
           setCursor('text');
           return;
         }
@@ -1213,6 +1234,7 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
     : undefined;
 
   const chartProps = {
+    key: chartType,
     ref: chartRef as React.Ref<ChartJS>,
     data,
     options,

@@ -107,6 +107,6 @@ export const DEFAULT_CUSTOMIZATION: ChartCustomization = {
   dataLabelFont: { family: 'Mona Sans', size: 11, weight: 'normal', color: '#374151' },
   dataLabelFormat: 'value',
   dataLabelDecimalPlaces: 0,
-  dataLabelPosition: 'end',
+  dataLabelPosition: 'auto',
   numberFormat: DEFAULT_NUMBER_FORMAT,
 };

@@ -1,4 +1,20 @@
-export type ChartType = 'bar' | 'line' | 'pie' | 'doughnut' | 'scatter' | 'area' | 'radar' | 'polarArea' | 'combo';
+export type ChartType = 'bar' | 'line' | 'pie' | 'doughnut' | 'scatter' | 'area' | 'radar' | 'polarArea' | 'combo' | 'pictorial';
+
+export type PictorialShape = 'person' | 'smiley' | 'star' | 'heart' | 'thumbsUp';
+
+export interface PictorialConfig {
+  mode: 'fill' | 'grid';
+  shape: PictorialShape;
+  activeColor: string;
+  inactiveColor: string;
+  fillDirection: 'up' | 'left';
+  labelPosition: 'left' | 'right';
+  descriptor: string;
+  gridColumns: number;
+  showLabel: boolean;
+  labelSize: number;
+  descriptorSize: number;
+}
 
 import type { PaletteId } from '../data/palettes';
 export type { PaletteId };
@@ -112,6 +128,7 @@ export interface ChartCustomization {
   dataLabelDecimalPlaces: number;
   dataLabelPosition: DataLabelPosition;
   numberFormat: NumberFormatConfig;
+  pictorialConfig: PictorialConfig;
 }
 
 export interface ChartData {

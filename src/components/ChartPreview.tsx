@@ -29,6 +29,7 @@ import { SEMANTIC_COLORS } from '../data/palettes';
 import { formatNumber } from '../utils/numberFormat';
 import { isProportionChart } from '../utils/chartHelpers';
 import { DEFAULT_COLORS } from '../utils/chartDefaults';
+import { PictorialChart } from './PictorialChart';
 
 ChartJS.register(
   CategoryScale,
@@ -1264,6 +1265,22 @@ export const ChartPreview: React.FC<ChartPreviewProps> = ({
         return <Bar {...(chartProps as Parameters<typeof Bar>[0])} />;
     }
   };
+
+  if (chartType === 'pictorial') {
+    const pictorialValue = Math.min(100, Math.max(0, (chartData.datasets[0]?.data[0] as number) ?? 0));
+    return (
+      <div
+        ref={containerRef}
+        className="flex-1 flex flex-col items-center justify-center p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 relative"
+      >
+        <PictorialChart
+          value={pictorialValue}
+          config={customization.pictorialConfig}
+          isDarkMode={isDarkMode}
+        />
+      </div>
+    );
+  }
 
   const hasEditCallbacks = !!(onUpdateCell || onUpdateDatasetLabel || onUpdateCustomization || onUpdateLabel);
 

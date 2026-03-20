@@ -109,4 +109,17 @@ export const DEFAULT_CUSTOMIZATION: ChartCustomization = {
   dataLabelDecimalPlaces: 0,
   dataLabelPosition: 'auto',
   numberFormat: DEFAULT_NUMBER_FORMAT,
+  pictorialConfig: {
+    mode: 'fill',
+    shape: 'person',
+    activeColor: '#3b82f6',
+    inactiveColor: '#e5e7eb',
+    fillDirection: 'up',
+    labelPosition: 'right',
+    descriptor: '',
+    gridColumns: 10,
+    showLabel: true,
+    labelSize: 48,
+    descriptorSize: 16,
+  },
 };
